@@ -23,3 +23,17 @@ export interface ChatMessage {
   content: string
   createdAt: Date
 }
+
+export interface CourseStop {
+  order: number
+  heritage: Heritage
+  docentScript: string
+  transitionScript: string | null
+}
+
+export interface Course {
+  theme: string
+  duration: number
+  story: string
+  stops: CourseStop[]
+}
