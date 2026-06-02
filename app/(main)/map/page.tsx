@@ -80,7 +80,7 @@ export default function MapPage() {
                 <div className="flex items-center gap-3 mt-0.5">
                   <span className="text-xs text-stone-400">{h.distance ? `${h.distance}m` : h.address}</span>
                   <span className="text-xs text-stone-300">·</span>
-                  <span className="text-xs text-stone-400">{h.designation} {h.designationNo}</span>
+                  <span className="text-xs text-stone-400">{h.designation}</span>
                 </div>
               </div>
               <Clock size={14} className="text-stone-300 flex-shrink-0" />

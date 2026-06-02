@@ -1,59 +1,52 @@
 import { createClient } from '@supabase/supabase-js'
 
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// 서버 전용 (서비스 롤 키) - API Route에서만 사용
-export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-/*
-  Supabase SQL 초기화 (한 번만 실행):
+// 방문 기록 저장
+export async function saveVisit(heritageId: string, heritageName: string) {
+  const { error } = await supabase
+    .from('visits')
+    .insert({ heritage_id: heritageId, heritage_name: heritageName })
+  if (error) console.error('visit save error:', error)
+}
 
-  -- pgvector 확장 활성화
-  create extension if not exists vector;
+// 즐겨찾기 추가
+export async function addBookmark(heritageId: string, heritageName: string) {
+  const { error } = await supabase
+    .from('bookmarks')
+    .insert({ heritage_id: heritageId, heritage_name: heritageName })
+  if (error) console.error('bookmark error:', error)
+}
 
-  -- RAG 문서 청크 테이블
-  create table document_chunks (
-    id uuid primary key default gen_random_uuid(),
-    content text not null,
-    embedding vector(1536),
-    source text,              -- heritage_api | emuseum | crawled
-    heritage_id text,
-    heritage_nm text,
-    era text,
-    person text,
-    created_at timestamptz default now()
-  );
+// 즐겨찾기 삭제
+export async function removeBookmark(heritageId: string) {
+  const { error } = await supabase
+    .from('bookmarks')
+    .delete()
+    .eq('heritage_id', heritageId)
+  if (error) console.error('bookmark remove error:', error)
+}
 
-  -- 벡터 유사도 검색 함수
-  create or replace function match_documents(
-    query_embedding vector(1536),
-    match_count int default 5,
-    filter_era text default null,
-    filter_person text default null
-  )
-  returns table (
-    id uuid,
-    content text,
-    heritage_nm text,
-    era text,
-    similarity float
-  )
-  language sql stable
-  as $$
-    select
-      id, content, heritage_nm, era,
-      1 - (embedding <=> query_embedding) as similarity
-    from document_chunks
-    where
-      (filter_era is null or era = filter_era) and
-      (filter_person is null or person = filter_person)
-    order by embedding <=> query_embedding
-    limit match_count;
-  $$;
-*/
+// 즐겨찾기 목록 조회
+export async function getBookmarks() {
+  const { data, error } = await supabase
+    .from('bookmarks')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) console.error('bookmark fetch error:', error)
+  return data ?? []
+}
+
+// 방문 기록 조회
+export async function getVisits() {
+  const { data, error } = await supabase
+    .from('visits')
+    .select('*')
+    .order('visited_at', { ascending: false })
+    .limit(20)
+  if (error) console.error('visit fetch error:', error)
+  return data ?? []
+}

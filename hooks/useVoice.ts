@@ -1,22 +1,28 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySpeechRecognition = any
+
 export function useVoice() {
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<AnySpeechRecognition>(null)
 
   // STT: 음성 → 텍스트
   const startListening = useCallback((onResult: (text: string) => void) => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) return
+    if (typeof window === 'undefined') return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
 
-    const recognition = new SpeechRecognition()
+    const recognition = new SR()
     recognition.lang = 'ko-KR'
     recognition.continuous = false
     recognition.interimResults = false
 
-    recognition.onresult = (e) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => {
       const text = e.results[0][0].transcript
       onResult(text)
     }

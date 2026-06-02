@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -22,7 +22,7 @@ export async function searchRelevantDocs(
   const queryEmbedding = embeddingRes.data[0].embedding
 
   // 2. Supabase pgvector 유사도 검색
-  const { data, error } = await supabaseAdmin.rpc('match_documents', {
+  const { data, error } = await supabase.rpc('match_documents', {
     query_embedding: queryEmbedding,
     match_count: matchCount,
     filter_era: filterEra ?? null,
