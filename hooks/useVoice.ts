@@ -9,7 +9,6 @@ export function useVoice() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const recognitionRef = useRef<AnySpeechRecognition>(null)
 
-  // STT: 음성 → 텍스트
   const startListening = useCallback((onResult: (text: string) => void) => {
     if (typeof window === 'undefined') return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +38,6 @@ export function useVoice() {
     setIsListening(false)
   }, [])
 
-  // TTS: 텍스트 → 음성
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return
     window.speechSynthesis.cancel()
