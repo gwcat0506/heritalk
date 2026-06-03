@@ -1,7 +1,7 @@
 import { Heritage } from '@/types/heritage'
 import { XMLParser } from 'fast-xml-parser'
 
-const BASE = 'http://www.cha.go.kr/cha'
+const BASE = 'https://www.cha.go.kr/cha'
 
 // 실제 API 응답 구조에 맞는 파서 설정
 const parser = new XMLParser({
