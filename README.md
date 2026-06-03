@@ -6,7 +6,6 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org)
 [![Vercel](https://img.shields.io/badge/Deployed-Vercel-black)](https://heritalk.vercel.app)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Live Demo** → [heritalk.vercel.app](https://heritalk.vercel.app)
 
@@ -14,43 +13,34 @@
 
 ## 서비스 소개
 
-기존 국가유산 서비스(my.heritage.go.kr)는 정보를 **제공**하지만, HeriTalk은 AI가 **안내**합니다.
+기존 국가유산 서비스는 정보를 **제공**하지만, HeriTalk은 AI가 **안내**합니다.
 
-- 현재 위치 주변 국가유산을 지도에서 바로 확인
-- 유산을 선택하면 AI 도슨트와 자유롭게 대화
-- 역사 지식 수준에 맞게 어린이 / 일반 / 심화 3단계로 설명
-- 음성으로 질문하고 음성으로 답변 받기
-- 테마별(조선왕궁, 일제강점기, 이순신 등) AI 추천 코스 생성
+현재 위치 주변 국가유산을 지도에서 확인하고, 선택하면 AI 도슨트와 자유롭게 대화할 수 있어요. 역사 지식 수준에 맞게 어린이 / 일반 / 심화 3단계로 설명하며, 음성 입출력도 지원합니다.
 
 ---
 
 ## 주요 기능
 
-### 1. 위치 기반 주변 유산 조회
-GPS로 현재 위치를 감지하고 반경 내 국가유산을 지도와 목록으로 표시합니다. 국가유산청 공공 Open API를 실시간으로 호출하며, API 키 없이 동작합니다.
+### 📍 위치 기반 유산 조회
+GPS로 현재 위치를 감지하고 반경 2km 내 국가유산을 카카오 지도와 목록으로 표시합니다. 국가유산청 공공 Open API를 실시간 호출하며 API 키 없이 무료로 동작합니다.
 
-### 2. 난이도 적응형 AI 도슨트 대화
-유산을 선택하면 GPT-4o-mini 기반 AI 도슨트와 자유롭게 대화할 수 있습니다. 난이도를 3단계로 선택하면 같은 질문에도 다른 수준의 답변을 제공합니다.
+### 🤖 난이도 적응형 AI 도슨트
+유산 선택 시 GPT-4o-mini 기반 AI 도슨트와 자유롭게 대화할 수 있습니다.
 
-| 난이도 | 대상 | 설명 스타일 |
-|--------|------|-------------|
-| 어린이 | 초등학생 이하 | 짧고 친근한 문장, 비유 중심 |
-| 일반 | 일반 성인 | 역사적 맥락 + 사건 중심 |
-| 심화 | 역사 전공·마니아 | 사료·건축양식·연구 관점 |
+| 난이도 | 설명 스타일 |
+|--------|-------------|
+| 어린이 | 짧고 친근한 문장, 비유 중심 |
+| 일반 | 역사적 맥락 + 사건 중심 |
+| 심화 | 사료·건축양식·연구 관점 |
 
-### 3. 음성 도슨트 (STT / TTS)
-Web Speech API를 활용해 마이크로 질문하고 AI 답변을 음성으로 들을 수 있습니다. 현장에서 핸즈프리로 사용 가능합니다.
+### 🎤 음성 도슨트
+Web Speech API로 마이크로 질문하고 AI 답변을 음성으로 들을 수 있습니다.
 
-### 4. 테마별 AI 추천 코스
-사용자 조건(테마, 소요시간)을 입력하면 주변 유산을 실제 상세 정보 기반으로 분석해 하나의 역사 서사로 엮은 탐방 코스를 생성합니다.
+### 🗺️ 테마별 AI 추천 코스
+테마(조선왕궁, 일제강점기, 이순신 등)와 소요시간을 선택하면 주변 유산을 역사 서사로 엮은 탐방 코스를 생성합니다. 각 장소의 실제 상세 설명문을 기반으로 GPT가 구체적인 해설을 생성합니다.
 
-| 테마 | 설명 |
-|------|------|
-| 조선왕궁 | 경복궁·창덕궁·종묘 등 조선 왕실 중심 |
-| 일제강점기 | 서대문형무소·독립문·경교장 등 항일 역사 |
-| 이순신 | 임진왜란·이순신 관련 유산 |
-| 세종대왕 | 한글 창제·과학·문화 관련 유산 |
-| 근현대 | 개항기~1950년대 근대화 관련 유산 |
+### 👤 회원 기능
+이메일 / 구글 / 카카오 로그인을 지원하며, 방문 기록과 즐겨찾기를 저장합니다.
 
 ---
 
@@ -61,59 +51,57 @@ Web Speech API를 활용해 마이크로 질문하고 AI 답변을 음성으로 
           │
           ▼
 ┌─────────────────────────┐
-│   Next.js 15 App Router  │  ← Vercel 배포
+│   Next.js 15 App Router  │  ← Vercel 배포 (자동 HTTPS)
 │   React PWA (모바일 웹)  │
 │                          │
 │  /map     지도 + 목록    │
 │  /docent  AI 대화        │
 │  /course  코스 추천      │
+│  /profile 마이페이지     │
+│  /auth    로그인         │
 └────────────┬────────────┘
-             │ API Routes (서버)
-    ┌────────┼─────────────┐
-    ▼        ▼             ▼
-국가유산청  GPT-4o-mini   Web Speech
-Open API   (OpenAI API)   API (STT/TTS)
-    │        │
-    ▼        ▼
-실제 유산  유산 설명 +
-정보 조회  스토리 생성
+             │ API Routes (서버사이드)
+    ┌────────┼──────────┬──────────┐
+    ▼        ▼          ▼          ▼
+국가유산청  GPT-4o-mini  Supabase   Kakao Map
+Open API   (OpenAI)    (Auth+DB)   SDK
 ```
 
 ### 데이터 흐름
 
+**유산 조회:**
+```
+GPS 좌표 → /api/heritage → 국가유산청 API (7개 지정종류 병렬 조회)
+→ Haversine 거리 계산 → 반경 내 필터 → 거리순 정렬
+```
+
 **도슨트 대화:**
 ```
-사용자 질문
-  → POST /api/chat
-  → GPT-4o-mini (유산 기본정보 + 난이도 프롬프트)
-  → 스트리밍 텍스트 응답
-  → TTS로 음성 출력
+질문 → /api/chat → GPT-4o-mini (유산 설명문 + 난이도 프롬프트)
+→ 스트리밍 텍스트 → TTS 음성 출력
 ```
 
 **코스 추천:**
 ```
-테마 + 소요시간 선택
-  → POST /api/course
-  → 국가유산청 API (반경 3km 유산 조회)
-  → 테마 키워드 필터링
-  → 각 유산 상세 조회 (설명문, 시대, 주소) - 병렬 처리
-  → GPT-4o-mini (구체적 역사 서사 + 장소별 해설 생성)
-  → JSON 코스 반환
+테마 선택 → /api/course → 국가유산청 API (반경 3km)
+→ 테마 키워드 필터 → 유산 상세 조회 (병렬)
+→ GPT-4o-mini (역사 서사 + 장소별 해설) → JSON 코스
 ```
 
 ---
 
 ## 기술 스택
 
-| 분류 | 기술 | 선택 이유 |
-|------|------|-----------|
-| 프레임워크 | Next.js 15 (App Router) | API Route로 서버 별도 불필요, Vercel 최적화 |
-| 스타일링 | Tailwind CSS | 빠른 모바일 UI 개발 |
-| LLM | GPT-4o-mini (OpenAI) | 비용 효율, 한국어 품질 |
-| 지도 | 카카오 지도 SDK | 한국 주소·좌표 정확도 |
-| STT/TTS | Web Speech API | 무료, 브라우저 내장, 추가 API 불필요 |
-| 국가유산 데이터 | 국가유산청 Open API | API 키 없이 무료 사용 가능 |
-| 배포 | Vercel | GitHub 연동 자동 배포 |
+| 분류 | 기술 | 이유 |
+|------|------|------|
+| 프레임워크 | Next.js 15 (App Router) | API Route로 서버 별도 불필요 |
+| 스타일링 | Tailwind CSS | 빠른 모바일 UI |
+| LLM | GPT-4o-mini | 비용 효율, 스트리밍 지원 |
+| DB / Auth | Supabase (PostgreSQL) | Auth + DB + 실시간 한 번에 |
+| 지도 | Kakao Map SDK | 한국 좌표 정확도 최고 |
+| STT/TTS | Web Speech API | 무료, 브라우저 내장 |
+| 유산 데이터 | 국가유산청 Open API | API 키 없이 무료 |
+| 배포 | Vercel | GitHub push → 자동 배포 |
 
 ---
 
@@ -129,17 +117,22 @@ npm install
 
 # 3. 환경변수 설정
 cp .env.example .env.local
-# .env.local에 OPENAI_API_KEY 입력
+# .env.local에 아래 키 입력
 
-# 4. 개발 서버 실행
+# 4. 개발 서버 (HTTPS - 카카오 지도 로컬 테스트용)
+npx next dev --experimental-https
+
+# 또는 일반 HTTP (카카오 지도 제외 기능 테스트)
 npm run dev
-# http://localhost:3000/map 접속
 ```
 
 ## 환경변수
 
 ```env
-OPENAI_API_KEY=sk-...        # OpenAI API 키 (필수)
+NEXT_PUBLIC_KAKAO_MAP_KEY=     # 카카오 개발자 콘솔 JavaScript 키
+OPENAI_API_KEY=                # OpenAI API 키
+NEXT_PUBLIC_SUPABASE_URL=      # Supabase 프로젝트 URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY= # Supabase anon public 키
 ```
 
 > 국가유산청 API는 키 없이 동작합니다.
@@ -152,30 +145,49 @@ OPENAI_API_KEY=sk-...        # OpenAI API 키 (필수)
 heritalk/
 ├── app/
 │   ├── (main)/
-│   │   ├── layout.tsx        # 하단 네비게이션
-│   │   ├── map/page.tsx      # 지도 홈
+│   │   ├── layout.tsx        # 하단 네비게이션 (활성탭 표시)
+│   │   ├── map/page.tsx      # 지도 홈 + 유산 목록
 │   │   ├── docent/page.tsx   # AI 도슨트 대화
 │   │   ├── course/page.tsx   # 코스 추천
-│   │   └── profile/page.tsx  # 내 정보
-│   └── api/
-│       ├── heritage/route.ts # 국가유산청 API 프록시
-│       ├── chat/route.ts     # GPT 도슨트 대화
-│       └── course/route.ts   # 코스 추천 생성
+│   │   └── profile/page.tsx  # 마이페이지
+│   ├── api/
+│   │   ├── heritage/route.ts # 국가유산청 API 프록시
+│   │   ├── chat/route.ts     # GPT 도슨트 (스트리밍)
+│   │   └── course/route.ts   # 코스 추천 생성
+│   ├── auth/
+│   │   ├── page.tsx          # 로그인/회원가입 (이메일·구글·카카오)
+│   │   └── callback/page.tsx # OAuth 콜백 처리
+│   ├── layout.tsx            # 루트 레이아웃 (카카오 SDK 로드)
+│   └── page.tsx              # / → /map 리다이렉트
 ├── components/
-│   └── chat/ChatInterface.tsx
+│   ├── chat/ChatInterface.tsx # 도슨트 대화 UI + 음성
+│   └── map/KakaoMap.tsx       # 카카오 지도 컴포넌트
 ├── hooks/
 │   ├── useGeolocation.ts     # GPS 위치
 │   └── useVoice.ts           # STT/TTS
 ├── lib/
-│   └── api/heritage.ts       # 국가유산청 API 클라이언트
+│   ├── api/heritage.ts       # 국가유산청 API 클라이언트
+│   ├── auth.ts               # Supabase Auth 헬퍼
+│   └── supabase.ts           # Supabase 클라이언트 + DB 헬퍼
 └── types/
-    └── heritage.ts
+    └── heritage.ts           # 타입 정의
+```
+
+---
+
+## Supabase 테이블 구조
+
+```sql
+users      -- 유저 프로필 (id, email, nickname)
+visits     -- 방문 기록 (user_id, heritage_id, heritage_name)
+bookmarks  -- 즐겨찾기 (user_id, heritage_id, heritage_name)
+heritage_docs -- RAG용 유산 문서 벡터 (향후 확장)
 ```
 
 ---
 
 ## 공모전 출품
 
-2025 문화 디지털혁신 및 데이터 활용 공모전 출품작
+2025 문화 디지털혁신 및 데이터 활용 공모전
 - 부문: 우수사례 > AI·디지털 기술을 활용한 문화서비스
 - 주최: 문화체육관광부 / 한국문화정보원

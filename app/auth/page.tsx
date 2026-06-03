@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn, signUp, signInWithGoogle, signInWithKakao } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { Mail, Lock, User, ArrowLeft } from 'lucide-react'
 
 export default function AuthPage() {
@@ -12,6 +13,13 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+
+  // 이미 로그인된 경우 /map으로
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/map')
+    })
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
