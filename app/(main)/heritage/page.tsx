@@ -89,8 +89,11 @@ function HeritageContent() {
     </div>
   )
 
-  // 상세 API 미지원 유산 (시도유형, 시도기념물 등) - name이 비어있으면 기본 정보로 표시
-  const hasDetail = heritage && heritage.name !== ''
+  if (!heritage) return (
+    <div className="flex items-center justify-center h-full text-stone-400 text-sm">
+      유산 정보를 찾을 수 없습니다
+    </div>
+  )
 
   const designationColor = DESIGNATION_COLOR[heritage.designation] ?? 'bg-stone-100 text-stone-600'
 
