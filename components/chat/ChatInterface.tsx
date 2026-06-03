@@ -78,20 +78,10 @@ export default function ChatInterface({ heritage }: Props) {
       while (reader) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value)
-        // SSE 파싱 (claude streaming)
-        const lines = chunk.split('\n').filter(l => l.startsWith('data:'))
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line.slice(5))
-            if (data.type === 'content_block_delta') {
-              fullText += data.delta?.text ?? ''
-              setMessages(prev =>
-                prev.map(m => m.id === assistantMsg.id ? { ...m, content: fullText } : m)
-              )
-            }
-          } catch {}
-        }
+        fullText += decoder.decode(value, { stream: true })
+        setMessages(prev =>
+          prev.map(m => m.id === assistantMsg.id ? { ...m, content: fullText } : m)
+        )
       }
 
       // TTS로 답변 읽어주기
