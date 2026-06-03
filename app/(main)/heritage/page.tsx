@@ -78,7 +78,7 @@ function HeritageContent() {
       await removeBookmark(heritage.id)
       setBookmarked(false)
     } else {
-      await addBookmark(heritage.id, heritage.name)
+      await addBookmark(heritage.id, heritage.name || fallbackName)
       setBookmarked(true)
     }
   }
