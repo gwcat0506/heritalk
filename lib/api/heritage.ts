@@ -9,6 +9,8 @@ const parser = new XMLParser({
   cdataPropName: '__cdata',
   isArray: (name) => name === 'item',
   trimValues: true,
+  parseTagValue: false,  // 숫자 자동변환 끄기 (앞의 0 보존)
+  parseAttributeValue: false,
 })
 
 // CDATA 또는 일반 문자열 추출
