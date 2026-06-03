@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/heritage/route.ts": {
+      "regions": ["icn1"]
+    },
+    "app/api/chat/route.ts": {
+      "regions": ["icn1"]
+    },
+    "app/api/course/route.ts": {
+      "regions": ["icn1"]
+    }
+  }
+}
