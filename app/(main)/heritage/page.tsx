@@ -21,6 +21,12 @@ function HeritageContent() {
   const router = useRouter()
   const id = params.get('id')
 
+  // URL 파라미터에서 기본 정보 (상세 API 미지원 유산 대비)
+  const fallbackName = params.get('name') ?? ''
+  const fallbackDesignation = params.get('designation') ?? ''
+  const fallbackDistrict = params.get('district') ?? ''
+  const fallbackDistance = params.get('distance') ?? ''
+
   const [heritage, setHeritage] = useState<Heritage | null>(null)
   const [loading, setLoading] = useState(true)
   const [bookmarked, setBookmarked] = useState(false)
@@ -32,7 +38,26 @@ function HeritageContent() {
     // 유산 상세 조회
     fetch(`/api/heritage?id=${id}`)
       .then(r => r.json())
-      .then(data => setHeritage(data))
+      .then(data => {
+        // 상세 API 미지원 시 URL 파라미터 기본값 사용
+        if (!data.name) {
+          setHeritage({
+            id,
+            name: fallbackName,
+            designation: fallbackDesignation,
+            district: fallbackDistrict,
+            distance: fallbackDistance ? parseInt(fallbackDistance) : undefined,
+            category: '',
+            era: '',
+            city: '',
+            address: '',
+            lat: 0,
+            lng: 0,
+          })
+        } else {
+          setHeritage(data)
+        }
+      })
       .finally(() => setLoading(false))
 
     // 로그인 + 즐겨찾기 여부 확인
@@ -64,11 +89,8 @@ function HeritageContent() {
     </div>
   )
 
-  if (!heritage) return (
-    <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-      유산 정보를 찾을 수 없습니다
-    </div>
-  )
+  // 상세 API 미지원 유산 (시도유형, 시도기념물 등) - name이 비어있으면 기본 정보로 표시
+  const hasDetail = heritage && heritage.name !== ''
 
   const designationColor = DESIGNATION_COLOR[heritage.designation] ?? 'bg-stone-100 text-stone-600'
 
@@ -132,16 +154,22 @@ function HeritageContent() {
       </div>
 
       {/* 설명 */}
-      {heritage.description && (
-        <div className="px-5 mb-6">
-          <div className="h-px bg-stone-100 mb-4" />
-          <h2 className="text-sm font-semibold text-stone-700 mb-2">유산 소개</h2>
-          <p className="text-sm text-stone-600 leading-relaxed">
-            {heritage.description.slice(0, 300)}
-            {heritage.description.length > 300 && '...'}
+      <div className="px-5 mb-6">
+        <div className="h-px bg-stone-100 mb-4" />
+        {heritage.description ? (
+          <>
+            <h2 className="text-sm font-semibold text-stone-700 mb-2">유산 소개</h2>
+            <p className="text-sm text-stone-600 leading-relaxed">
+              {heritage.description.slice(0, 300)}
+              {heritage.description.length > 300 && '...'}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-stone-400 text-center py-4">
+            이 유산의 상세 정보는 준비 중입니다
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 도슨트 버튼 */}
       <div className="px-5 pb-6">

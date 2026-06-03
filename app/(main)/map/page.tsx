@@ -53,7 +53,14 @@ export default function MapPage() {
 
   const handleSelect = (h: Heritage) => {
     saveVisit(h.id, h.name).catch(() => {})
-    router.push(`/heritage?id=${h.id}`)
+    const params = new URLSearchParams({
+      id: h.id,
+      name: h.name,
+      designation: h.designation,
+      district: h.district,
+      distance: String(h.distance ?? ''),
+    })
+    router.push(`/heritage?${params.toString()}`)
   }
 
   return (
