@@ -5,6 +5,7 @@ import { useGeolocation } from '@/hooks/useGeolocation'
 import { Heritage } from '@/types/heritage'
 import { useRouter } from 'next/navigation'
 import { MapPin, Navigation, Clock } from 'lucide-react'
+import { saveVisit } from '@/lib/supabase'
 
 // 카카오 지도는 SSR 불가 → dynamic import
 const KakaoMap = dynamic(() => import('@/components/map/KakaoMap'), { ssr: false })
@@ -39,6 +40,7 @@ export default function MapPage() {
   )
 
   const handleSelect = (h: Heritage) => {
+    saveVisit(h.id, h.name).catch(() => {}) // 로그인 안 돼도 무시
     router.push(`/docent?id=${h.id}`)
   }
 

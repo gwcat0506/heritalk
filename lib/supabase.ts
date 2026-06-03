@@ -5,36 +5,56 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// 현재 로그인된 유저 ID 가져오기
+async function getUserId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id ?? null
+}
+
 // 방문 기록 저장
 export async function saveVisit(heritageId: string, heritageName: string) {
+  const userId = await getUserId()
+  if (!userId) return // 비로그인 시 무시
+
   const { error } = await supabase
     .from('visits')
-    .insert({ heritage_id: heritageId, heritage_name: heritageName })
+    .insert({ heritage_id: heritageId, heritage_name: heritageName, user_id: userId })
   if (error) console.error('visit save error:', error)
 }
 
 // 즐겨찾기 추가
 export async function addBookmark(heritageId: string, heritageName: string) {
+  const userId = await getUserId()
+  if (!userId) return
+
   const { error } = await supabase
     .from('bookmarks')
-    .insert({ heritage_id: heritageId, heritage_name: heritageName })
+    .insert({ heritage_id: heritageId, heritage_name: heritageName, user_id: userId })
   if (error) console.error('bookmark error:', error)
 }
 
 // 즐겨찾기 삭제
 export async function removeBookmark(heritageId: string) {
+  const userId = await getUserId()
+  if (!userId) return
+
   const { error } = await supabase
     .from('bookmarks')
     .delete()
     .eq('heritage_id', heritageId)
+    .eq('user_id', userId)
   if (error) console.error('bookmark remove error:', error)
 }
 
 // 즐겨찾기 목록 조회
 export async function getBookmarks() {
+  const userId = await getUserId()
+  if (!userId) return []
+
   const { data, error } = await supabase
     .from('bookmarks')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) console.error('bookmark fetch error:', error)
   return data ?? []
@@ -42,9 +62,13 @@ export async function getBookmarks() {
 
 // 방문 기록 조회
 export async function getVisits() {
+  const userId = await getUserId()
+  if (!userId) return []
+
   const { data, error } = await supabase
     .from('visits')
     .select('*')
+    .eq('user_id', userId)
     .order('visited_at', { ascending: false })
     .limit(20)
   if (error) console.error('visit fetch error:', error)

@@ -54,13 +54,7 @@ export default function KakaoMap({ lat, lng, heritageList, onSelect }: Props) {
       })
     }
 
-    // kakao SDK가 이미 로드된 경우
-    if (window.kakao?.maps) {
-      drawMap()
-      return
-    }
-
-    // kakao는 있지만 maps 초기화 전 (autoload=false)
+    // kakao 객체가 있으면 항상 maps.load() 통해서 초기화 (autoload=false이므로)
     if (window.kakao) {
       window.kakao.maps.load(drawMap)
       return
