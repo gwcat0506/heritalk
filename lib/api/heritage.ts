@@ -54,15 +54,15 @@ const SIDO_CENTERS: { code: string; name: string; lat: number; lng: number }[] =
   { code: '50', name: '제주', lat: 33.4996, lng: 126.5312 },
 ]
 
-// 좌표에서 가까운 시·도 코드 k개 선택.
-// 경기가 서울을 감싸는 등 경계가 복잡해 '가장 가까운 1곳'만 쓰면
-// 인접 시·도 유산을 놓치므로, 가까운 여러 곳을 함께 조회한다.
-function nearestCityCodes(lat: number, lng: number, k = 3): string[] {
-  return SIDO_CENTERS
+// 좌표 주변에서 조회할 시·도 코드들을 고른다.
+// 큰 도(경북 등)는 중심점이 멀어서 '가까운 N곳'만 뽑으면 정작 그 도가 빠진다.
+// 그래서 중심점이 maxKm 이내인 시·도를 모두 포함한다(최소 4곳은 보장).
+function nearbyCityCodes(lat: number, lng: number, maxKm = 140): string[] {
+  const ranked = SIDO_CENTERS
     .map(s => ({ code: s.code, d: calcDistance(lat, lng, s.lat, s.lng) }))
     .sort((a, b) => a.d - b.d)
-    .slice(0, k)
-    .map(s => s.code)
+  const within = ranked.filter(s => s.d <= maxKm * 1000)
+  return (within.length >= 4 ? within : ranked.slice(0, 4)).map(s => s.code)
 }
 
 // 지정종류 코드: 국보(11), 보물(12), 사적(13), 명승(14), 천연기념물(15), 시도유형(21), 시도기념물(23)
@@ -91,7 +91,7 @@ export async function getNearbyHeritage(
   lng: number,
   radiusM = 2000
 ): Promise<Heritage[]> {
-  const cityCodes = nearestCityCodes(lat, lng, 3)
+  const cityCodes = nearbyCityCodes(lat, lng)
 
   // 가까운 시·도 × 지정종류를 모두 병렬 조회 (먼 결과는 아래 반경 필터에서 제거)
   const results = await Promise.all(
