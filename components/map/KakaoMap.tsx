@@ -5,8 +5,10 @@ import { Heritage } from '@/types/heritage'
 interface Props {
   lat: number
   lng: number
+  radius: number                                  // 미터 — 반경 원 표시용
   heritageList: Heritage[]
   onSelect: (heritage: Heritage) => void
+  onMapClick?: (lat: number, lng: number) => void // 지도 탭 → 위치 지정
 }
 
 declare global {
@@ -14,7 +16,15 @@ declare global {
   interface Window { kakao: any }
 }
 
-export default function KakaoMap({ lat, lng, heritageList, onSelect }: Props) {
+// 반경에 맞춰 지도 줌 레벨 자동 조절
+function levelForRadius(radius: number): number {
+  if (radius <= 1000) return 5
+  if (radius <= 2000) return 6
+  if (radius <= 5000) return 7
+  return 8
+}
+
+export default function KakaoMap({ lat, lng, radius, heritageList, onSelect, onMapClick }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,10 +35,22 @@ export default function KakaoMap({ lat, lng, heritageList, onSelect }: Props) {
 
       const map = new window.kakao.maps.Map(mapRef.current, {
         center: new window.kakao.maps.LatLng(lat, lng),
-        level: 4,
+        level: levelForRadius(radius),
       })
 
-      // 내 위치 마커 (별)
+      // 검색 반경 원
+      new window.kakao.maps.Circle({
+        center: new window.kakao.maps.LatLng(lat, lng),
+        radius,
+        strokeWeight: 1,
+        strokeColor: '#d97706',
+        strokeOpacity: 0.6,
+        fillColor: '#f59e0b',
+        fillOpacity: 0.08,
+        map,
+      })
+
+      // 중심(내/선택) 위치 마커 (별)
       new window.kakao.maps.Marker({
         position: new window.kakao.maps.LatLng(lat, lng),
         map,
@@ -52,15 +74,21 @@ export default function KakaoMap({ lat, lng, heritageList, onSelect }: Props) {
         window.kakao.maps.event.addListener(marker, 'mouseout', () => infowindow.close())
         window.kakao.maps.event.addListener(marker, 'click', () => onSelect(h))
       })
+
+      // 지도 탭 → 위치 지정
+      if (onMapClick) {
+        window.kakao.maps.event.addListener(map, 'click', (mouseEvent: any) => {
+          const ll = mouseEvent.latLng
+          onMapClick(ll.getLat(), ll.getLng())
+        })
+      }
     }
 
-    // kakao 객체가 있으면 항상 maps.load() 통해서 초기화 (autoload=false이므로)
     if (window.kakao) {
       window.kakao.maps.load(drawMap)
       return
     }
 
-    // 아직 SDK 로드 중 → 폴링
     const timer = setInterval(() => {
       if (window.kakao) {
         clearInterval(timer)
@@ -70,7 +98,7 @@ export default function KakaoMap({ lat, lng, heritageList, onSelect }: Props) {
 
     return () => clearInterval(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lat, lng, heritageList])
+  }, [lat, lng, radius, heritageList])
 
   return <div ref={mapRef} style={{ width: '100%', height: '208px' }} />
 }
