@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Map, MessageCircle, Route, User } from 'lucide-react'
+import { Map, MessageCircle, Route, Library, User } from 'lucide-react'
 
 const NAV = [
   { href: '/map',     icon: Map,           label: '지도' },
   { href: '/docent',  icon: MessageCircle, label: '도슨트' },
   { href: '/course',  icon: Route,         label: '코스' },
+  { href: '/dogam',   icon: Library,       label: '도감' },
   { href: '/profile', icon: User,          label: '내 정보' },
 ]
 
