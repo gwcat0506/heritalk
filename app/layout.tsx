@@ -1,42 +1,34 @@
-import type { Metadata, Viewport } from 'next'
-import Script from 'next/script'
-import './globals.css'
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import TabBar from "@/components/TabBar";
 
 export const metadata: Metadata = {
-  title: 'HeriTalk',
-  description: '위치 기반 국가유산 AI 도슨트',
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'HeriTalk',
-  },
-}
+  title: "걷는 시간 — 도보 여행 역사 AI 가이드",
+  description:
+    "박물관·미술관·유적지를 거점으로, 산책·답사·관광 어디서나 한 점의 시간을 살아 있게 만드는 AI 동반자.",
+};
 
 export const viewport: Viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
-}
+  themeColor: "#1a294a",
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="ko">
-      <head>
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="theme-color" content="#ffffff" />
-      </head>
       <body>
-        <Script
-          src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
-          strategy="afterInteractive"
-        />
-        {children}
+        {/* 모바일 우선: 가운데 정렬된 max-w-md 셸 */}
+        <div className="mx-auto min-h-dvh max-w-md bg-canvas pb-20">
+          {children}
+        </div>
+        <TabBar />
       </body>
     </html>
-  )
+  );
 }
