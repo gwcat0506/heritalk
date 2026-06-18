@@ -1,13 +1,13 @@
 "use client";
 // 홈 — 인사 + 지도 미리보기 + AI 추천 코스 + 스와이프 덱(좌패스/우담기). (도슨트는 별도 탭)
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ALL_POIS } from "@/lib/data";
 import { districts, poisIn, nearby, walkEstimate } from "@/lib/poi";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { POIThumbnail, PrimaryButton } from "@/components/ui";
 import KakaoMap from "@/components/KakaoMap";
+import MapSheet from "@/components/MapSheet";
 import SwipeDeck from "@/components/SwipeDeck";
 import type { POI } from "@/lib/types";
 
@@ -25,6 +25,7 @@ function pickRecommendation(seed: number): POI[] {
 
 export default function HomePage() {
   const [seed, setSeed] = useState(1);
+  const [mapOpen, setMapOpen] = useState(false);
   const rec = useMemo(() => pickRecommendation(seed), [seed]);
   const est = walkEstimate(rec);
   const { toggle, contains } = useCourseDraft();
@@ -68,15 +69,18 @@ export default function HomePage() {
         <h1 className="text-2xl font-bold text-navy">걷는 시간</h1>
       </header>
 
-      {/* 지도 섹션 */}
+      {/* 지도 섹션 — 탭하면 아래에서 위로 시트로 펼침 */}
       <section className="relative mb-6 overflow-hidden rounded-card shadow-card">
         <KakaoMap markers={mapPins} center={SEOUL} height={200} />
-        <Link
-          href="/map"
-          className="pressable absolute bottom-3 right-3 z-10 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur"
-        >
+        {/* 투명 오버레이: 미리보기 탭 → 지도 시트 열기 */}
+        <button
+          onClick={() => setMapOpen(true)}
+          className="absolute inset-0 z-10"
+          aria-label="지도 열기"
+        />
+        <span className="pointer-events-none absolute bottom-3 right-3 z-20 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
           지도 보기 →
-        </Link>
+        </span>
       </section>
 
       {/* AI 추천 코스 */}
@@ -121,6 +125,8 @@ export default function HomePage() {
           onRefill={() => setSeed((s) => s + 1)}
         />
       </section>
+
+      <MapSheet open={mapOpen} onClose={() => setMapOpen(false)} />
     </main>
   );
 }

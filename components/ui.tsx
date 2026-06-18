@@ -3,9 +3,8 @@
 import { useState } from "react";
 import type { POI } from "@/lib/types";
 
-export const isHeritage = (category: string) => category === "사적";
-export const categoryHex = (category: string) =>
-  isHeritage(category) ? "#7d4cd9" : "#9e6e45";
+import { categoryHex, isHeritage } from "@/lib/categories";
+export { categoryHex, isHeritage };
 
 /** 카테고리 칩(사적=퍼플 / 박물관=브라운). */
 export function CategoryChip({ category }: { category: string }) {

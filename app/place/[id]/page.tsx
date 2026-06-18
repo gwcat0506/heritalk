@@ -1,8 +1,11 @@
-// 거점 상세 — 토이 POIDetailView 이식(음성 해설 제거): 히어로 + 정보 + 코스 담기 + 채팅 도슨트.
+// 거점 상세 — 정적 116 + KHS 라이브 동시 지원. 히어로 + 정보 + 코스 담기 + 채팅 도슨트.
 import { notFound } from "next/navigation";
 import { getPoi } from "@/lib/data";
+import { isKhsId, getPlaceCached, khsToPoi } from "@/lib/places";
+import { categoryHex, isHeritage } from "@/lib/categories";
 import DocentPanel from "@/components/DocentPanel";
 import PlaceActions from "./PlaceActions";
+import type { POI } from "@/lib/types";
 
 export default async function PlaceDetailPage({
   params,
@@ -10,8 +13,17 @@ export default async function PlaceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const poi = getPoi(id);
+
+  let poi: POI | undefined;
+  if (isKhsId(id)) {
+    const k = await getPlaceCached(id); // KHS: places 캐시 또는 라이브 → 저장
+    poi = k ? khsToPoi(k) : undefined;
+  } else {
+    poi = getPoi(id); // 정적 116
+  }
   if (!poi) notFound();
+
+  const hex = categoryHex(poi.category);
 
   return (
     <main className="pb-6">
@@ -19,46 +31,40 @@ export default async function PlaceDetailPage({
       <div className="relative h-56 w-full bg-neutral-200">
         {poi.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={poi.imageUrl}
-            alt={poi.name}
-            className="h-full w-full object-cover"
-          />
+          <img src={poi.imageUrl} alt={poi.name} className="h-full w-full object-cover" />
         ) : (
-          <div className="grid h-full place-items-center text-5xl">
-            {poi.category === "사적" ? "🏛️" : "🖼️"}
+          <div
+            className="grid h-full place-items-center text-5xl"
+            style={{ background: `linear-gradient(135deg, ${hex}d9, ${hex}8c)` }}
+          >
+            {isHeritage(poi.category) ? "🏛️" : "🖼️"}
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-          <span
-            className="chip text-white"
-            style={{
-              backgroundColor: poi.category === "사적" ? "#7d4cd9" : "#9e6e45",
-            }}
-          >
+          <span className="chip text-white" style={{ backgroundColor: hex }}>
             {poi.category}
           </span>
-          <h1 className="mt-1 text-2xl font-bold text-white">{poi.name}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-white drop-shadow">{poi.name}</h1>
         </div>
       </div>
 
       <div className="space-y-4 px-4 pt-4">
         <PlaceActions poi={poi} />
 
-        {/* AI 한눈에 보기 */}
-        <section className="card p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ai">✨ AI 한눈에 보기</h2>
-          <p className="text-sm leading-relaxed text-neutral-700">
-            {poi.shortDesc}
-          </p>
-        </section>
+        {/* 소개 */}
+        {poi.shortDesc && (
+          <section className="card p-4">
+            <h2 className="mb-1 text-sm font-semibold text-ai">✨ 유산 소개</h2>
+            <p className="text-sm leading-relaxed text-neutral-700">{poi.shortDesc}</p>
+          </section>
+        )}
 
         {/* 기본 정보 */}
         <section className="card divide-y divide-neutral-100 p-4 text-sm">
           <Row label="분류" value={poi.category} />
           {poi.era && <Row label="시대" value={poi.era} />}
-          <Row label="자치구" value={poi.district} />
-          <Row label="소재지" value={poi.address} />
+          {poi.district && <Row label="자치구" value={poi.district} />}
+          {poi.address && <Row label="소재지" value={poi.address} />}
         </section>
 
         {/* 채팅 도슨트 */}

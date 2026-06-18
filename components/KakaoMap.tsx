@@ -8,6 +8,7 @@ import type { LatLng, POI } from "@/lib/types";
 export interface MapMarker {
   poi: POI;
   order?: number; // 루트 순서 핀(있으면 번호 표시)
+  count?: number; // 좌표 클러스터 개수(>1이면 묶음 마커)
 }
 
 export default function KakaoMap({
@@ -73,17 +74,34 @@ export default function KakaoMap({
       path.forEach((p) => bounds.extend(new kakao.maps.LatLng(p.lat, p.lng)));
     });
 
-    // 마커(순서 핀 또는 카테고리 핀)
+    // 마커
+    const labelEls: HTMLElement[] = [];
     markers.forEach((m) => {
       const pos = new kakao.maps.LatLng(m.poi.latitude, m.poi.longitude);
       const hex = categoryHex(m.poi.category);
-      const label =
-        m.order !== undefined ? `${m.order === 0 ? "출발" : m.order}` : "";
       const el = document.createElement("div");
-      el.style.cssText = `transform:translate(-50%,-100%);cursor:pointer;`;
-      el.innerHTML = `<div style="background:${hex};color:#fff;border-radius:14px;padding:3px 9px;font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.3);white-space:nowrap">${label || "●"} ${m.poi.name}</div>`;
+      el.style.cssText = "cursor:pointer;";
+      if (m.order !== undefined) {
+        // 루트 핀(코스결과): 번호 + 이름 pill — 항상 표시
+        el.innerHTML = `<div style="background:${hex};color:#fff;border-radius:14px;padding:3px 9px;font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.3);white-space:nowrap">${m.order === 0 ? "출발" : m.order} ${m.poi.name}</div>`;
+      } else if (m.count && m.count > 1) {
+        // 좌표 클러스터: 개수 배지 원형(같은 위치 유산 묶음)
+        el.innerHTML = `<div style="display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:${hex};border:2px solid #fff;color:#fff;font-size:11px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.45)">${m.count}</div>`;
+      } else {
+        // 단일 유산: 색 원형 dot(항상) + 이름 라벨(흰 배경·색 테두리, 줌인 시에만)
+        el.innerHTML = `<div style="position:relative;width:14px;height:14px">
+          <span style="display:block;width:14px;height:14px;border-radius:50%;background:${hex};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45)"></span>
+          <span class="hm-label" style="display:none;position:absolute;top:18px;left:50%;transform:translateX(-50%);background:#fff;color:${hex};border:1.5px solid ${hex};border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)">${m.poi.name}</span>
+        </div>`;
+        const lbl = el.querySelector(".hm-label") as HTMLElement | null;
+        if (lbl) labelEls.push(lbl);
+      }
       el.onclick = () => onMarkerClick?.(m.poi);
-      const overlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1 });
+      const overlay = new kakao.maps.CustomOverlay({
+        position: pos,
+        content: el,
+        yAnchor: m.order !== undefined ? 1 : 0.5,
+      });
       overlay.setMap(map);
       overlaysRef.current.push(overlay);
       bounds.extend(pos);
@@ -92,6 +110,18 @@ export default function KakaoMap({
     if (markers.length + paths.length > 0 && !bounds.isEmpty()) {
       map.setBounds(bounds, 40, 40, 40, 40);
     }
+
+    // 줌 레벨에 따라 유산 이름 라벨 토글(겹침 방지). 레벨↓ = 확대.
+    const LABEL_LEVEL = 5;
+    const applyLabels = () => {
+      const show = map.getLevel() <= LABEL_LEVEL;
+      for (const l of labelEls) l.style.display = show ? "block" : "none";
+    };
+    applyLabels();
+    kakao.maps.event.addListener(map, "zoom_changed", applyLabels);
+    return () => {
+      kakao.maps.event.removeListener(map, "zoom_changed", applyLabels);
+    };
   }, [markers, paths, onMarkerClick]);
 
   if (error) {

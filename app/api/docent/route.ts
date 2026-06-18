@@ -1,6 +1,7 @@
 // 서버: 채팅 도슨트 — RAG(사료) + Gemini. 키 미설정 시 거점 요약 폴백.
 import { NextResponse } from "next/server";
 import { getPoi } from "@/lib/data";
+import { isKhsId, getPlaceCached } from "@/lib/places";
 import { generateAnswer, hasGemini } from "@/lib/gemini";
 import { searchPassages, toCitations } from "@/lib/rag";
 
@@ -16,10 +17,19 @@ export async function POST(req: Request) {
     if (!question?.trim()) {
       return NextResponse.json({ error: "질문이 비었습니다." }, { status: 400 });
     }
-    // placeId 있으면 거점 모드, 없으면 일반(장소 무관) 도슨트.
-    const poi = placeId ? getPoi(placeId) : null;
-    if (placeId && !poi) {
-      return NextResponse.json({ error: "거점을 찾을 수 없습니다." }, { status: 404 });
+    // placeId 있으면 거점 모드(정적 116 또는 KHS), 없으면 일반(장소 무관) 도슨트.
+    let poi: { name: string; shortDesc: string; era?: string | null } | null = null;
+    if (placeId) {
+      if (isKhsId(placeId)) {
+        const k = await getPlaceCached(placeId);
+        if (k) poi = { name: k.name, shortDesc: k.description ?? "", era: k.era };
+      } else {
+        const p = getPoi(placeId);
+        if (p) poi = { name: p.name, shortDesc: p.shortDesc, era: p.era };
+      }
+      if (!poi) {
+        return NextResponse.json({ error: "거점을 찾을 수 없습니다." }, { status: 404 });
+      }
     }
     const general = !poi;
 
