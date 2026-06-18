@@ -13,10 +13,10 @@ const HomeIcon = ({ className }: IconProps) => (
     <path d="M11.3 3.3a1 1 0 0 1 1.4 0l8 7.4a1 1 0 0 1 .3.7V20a1 1 0 0 1-1 1h-4v-6H8v6H4a1 1 0 0 1-1-1v-8.6a1 1 0 0 1 .3-.7z" />
   </svg>
 );
-// map.fill
-const MapIcon = ({ className }: IconProps) => (
+// chat bubble (도슨트)
+const ChatIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
-    <path d="M9 4 4 6a1 1 0 0 0-.6.9V20l5.6-2 6 2 4.6-1.8a1 1 0 0 0 .4-.8V4l-5 2z" />
+    <path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
   </svg>
 );
 // route(curvepath) — 두 지점 + 곡선
@@ -67,7 +67,7 @@ const PersonIcon = ({ className }: IconProps) => (
 
 const TABS = [
   { href: "/", label: "홈", Icon: HomeIcon },
-  { href: "/map", label: "지도", Icon: MapIcon },
+  { href: "/docent", label: "도슨트", Icon: ChatIcon },
   { href: "/course", label: "코스", Icon: RouteIcon },
   { href: "/saved", label: "저장", Icon: BookmarkIcon },
   { href: "/mypage", label: "마이", Icon: PersonIcon },

@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { POI, DocentMessage } from "@/lib/types";
 
-export default function DocentPanel({ poi }: { poi?: POI }) {
+export default function DocentPanel({
+  poi,
+  className = "h-[420px]",
+}: {
+  poi?: POI;
+  className?: string;
+}) {
   const [messages, setMessages] = useState<DocentMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,7 +71,7 @@ export default function DocentPanel({ poi }: { poi?: POI }) {
     : ["경복궁은 왜 중요해?", "조선시대 궁궐 알려줘", "한글은 누가 만들었어?"];
 
   return (
-    <div className="card flex h-[420px] flex-col overflow-hidden">
+    <div className={`card flex ${className} flex-col overflow-hidden`}>
       <div className="flex items-center gap-2 border-b border-neutral-100 px-4 py-3">
         <span className="text-lg">🧑‍🏫</span>
         <span className="font-semibold">AI 도슨트</span>

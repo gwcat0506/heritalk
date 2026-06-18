@@ -1,14 +1,14 @@
 "use client";
-// 홈 — 인사 + 일반 AI 도슨트 + AI 추천 코스 + 스와이프 덱. 지도는 bottom-sheet 모달.
+// 홈 — 인사 + 지도 미리보기 + AI 추천 코스 + 스와이프 덱(좌패스/우담기). (도슨트는 별도 탭)
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ALL_POIS } from "@/lib/data";
 import { districts, poisIn, nearby, walkEstimate } from "@/lib/poi";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { POIThumbnail, PrimaryButton } from "@/components/ui";
+import KakaoMap from "@/components/KakaoMap";
 import SwipeDeck from "@/components/SwipeDeck";
-import DocentPanel from "@/components/DocentPanel";
-import MapSheet from "@/components/MapSheet";
 import type { POI } from "@/lib/types";
 
 // 서울 도심 기준점(토이 seoulFallback).
@@ -25,14 +25,13 @@ function pickRecommendation(seed: number): POI[] {
 
 export default function HomePage() {
   const [seed, setSeed] = useState(1);
-  const [mapOpen, setMapOpen] = useState(false);
   const rec = useMemo(() => pickRecommendation(seed), [seed]);
   const est = walkEstimate(rec);
   const { toggle, contains } = useCourseDraft();
   const draftCount = useCourseDraft((s) => s.pois.length);
   const router = useRouter();
 
-  // 지도 모달 핀(도심 주변 6곳).
+  // 지도 미리보기 핀(도심 주변 6곳).
   const mapPins = useMemo(
     () => nearby(ALL_POIS, SEOUL, 50_000, 6).map((poi) => ({ poi })),
     []
@@ -64,23 +63,20 @@ export default function HomePage() {
 
   return (
     <main className="px-4 pt-6">
-      <header className="mb-4 flex items-start justify-between">
-        <div>
-          <p className="text-sm text-neutral-500">오늘, 어디를 걸어볼까요?</p>
-          <h1 className="text-2xl font-bold text-navy">걷는 시간</h1>
-        </div>
-        <button
-          onClick={() => setMapOpen(true)}
-          className="pressable mt-1 flex items-center gap-1 rounded-chip bg-white px-3 py-1.5 text-xs font-semibold text-navy shadow-card"
-        >
-          🗺️ 지도 보기
-        </button>
+      <header className="mb-4">
+        <p className="text-sm text-neutral-500">오늘, 어디를 걸어볼까요?</p>
+        <h1 className="text-2xl font-bold text-navy">걷는 시간</h1>
       </header>
 
-      {/* 일반 AI 도슨트 채팅 (장소 무관) */}
-      <section className="mb-6">
-        <h2 className="mb-2 font-semibold text-neutral-800">AI 도슨트에게 물어보기</h2>
-        <DocentPanel />
+      {/* 지도 섹션 */}
+      <section className="relative mb-6 overflow-hidden rounded-card shadow-card">
+        <KakaoMap markers={mapPins} center={SEOUL} height={200} />
+        <Link
+          href="/map"
+          className="pressable absolute bottom-3 right-3 z-10 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur"
+        >
+          지도 보기 →
+        </Link>
       </section>
 
       {/* AI 추천 코스 */}
@@ -125,13 +121,6 @@ export default function HomePage() {
           onRefill={() => setSeed((s) => s + 1)}
         />
       </section>
-
-      <MapSheet
-        open={mapOpen}
-        onClose={() => setMapOpen(false)}
-        markers={mapPins}
-        center={SEOUL}
-      />
     </main>
   );
 }
