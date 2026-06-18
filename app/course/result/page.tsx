@@ -29,7 +29,7 @@ export default function RouteResultPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         startId: startId ?? pois[0].id,
-        poiIds: pois.map((p) => p.id),
+        pois,
       }),
     })
       .then(async (r) => {

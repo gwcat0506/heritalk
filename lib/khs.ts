@@ -32,6 +32,7 @@ export interface KhsHeritage {
   address?: string;
   era?: string;
   description?: string;
+  summaryAi?: string; // Claude 정규화 요약(있으면 표시 우선)
   imageUrl?: string;
 }
 

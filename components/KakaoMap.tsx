@@ -16,12 +16,14 @@ export default function KakaoMap({
   paths = [],
   center,
   height = 360,
+  fill = false,
   onMarkerClick,
 }: {
   markers?: MapMarker[];
   paths?: LatLng[][];
   center?: LatLng;
   height?: number;
+  fill?: boolean; // true면 부모(relative)를 absolute inset-0로 채움
   onMarkerClick?: (poi: POI) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -127,8 +129,10 @@ export default function KakaoMap({
   if (error) {
     return (
       <div
-        className="grid place-items-center rounded-card bg-neutral-100 text-center text-sm text-neutral-500"
-        style={{ height }}
+        className={`grid place-items-center bg-neutral-100 text-center text-sm text-neutral-500 ${
+          fill ? "absolute inset-0" : "rounded-card"
+        }`}
+        style={fill ? undefined : { height }}
       >
         <div className="px-6">
           지도를 표시하려면 <code>NEXT_PUBLIC_KAKAO_MAP_KEY</code>가 필요합니다.
@@ -139,5 +143,6 @@ export default function KakaoMap({
     );
   }
 
+  if (fill) return <div ref={ref} className="absolute inset-0" />;
   return <div ref={ref} className="rounded-card" style={{ width: "100%", height }} />;
 }

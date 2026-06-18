@@ -16,7 +16,8 @@ export function khsToPoi(k: KhsHeritage): POI {
     latitude: k.lat,
     longitude: k.lng,
     address: k.address ?? "",
-    shortDesc: k.description ?? "",
+    shortDesc: k.summaryAi ?? k.description ?? "", // AI 요약 우선, 없으면 원문
+
     imageUrl: k.imageUrl ?? null,
     era: k.era ?? null,
   };
@@ -37,6 +38,7 @@ function rowToKhs(r: any): KhsHeritage {
     address: r.address ?? undefined,
     era: r.era ?? undefined,
     description: r.summary ?? undefined,
+    summaryAi: r.summary_ai ?? undefined,
     imageUrl: r.image_url ?? undefined,
   };
 }

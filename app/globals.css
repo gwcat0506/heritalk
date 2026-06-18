@@ -31,3 +31,12 @@ body {
     @apply transition-transform active:scale-[0.97] active:opacity-90;
   }
 }
+
+/* 스크롤바 숨김(가로·세로 공용) — 드래그/터치 스크롤은 유지 */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

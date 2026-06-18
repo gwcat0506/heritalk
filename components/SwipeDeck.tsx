@@ -170,12 +170,17 @@ function Card({ poi }: { poi: POI }) {
           {poi.name}
         </h3>
         <p className="line-clamp-1 text-xs text-neutral-500">
-          {poi.district} · {poi.address}
+          {poi.district}
+          {poi.address ? ` · ${poi.address}` : ""}
         </p>
-        <div className="h-px bg-neutral-100" />
-        <p className="line-clamp-3 text-sm leading-relaxed text-neutral-600">
-          {poi.shortDesc}
-        </p>
+        {poi.shortDesc && (
+          <>
+            <div className="h-px bg-neutral-100" />
+            <p className="line-clamp-3 text-sm leading-relaxed text-neutral-600">
+              {poi.shortDesc}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

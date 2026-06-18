@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { getPoi } from "@/lib/data";
 import { isKhsId, getPlaceCached, khsToPoi } from "@/lib/places";
 import { categoryHex, isHeritage } from "@/lib/categories";
-import DocentPanel from "@/components/DocentPanel";
+import Link from "next/link";
+import BackButton from "@/components/BackButton";
 import PlaceActions from "./PlaceActions";
 import type { POI } from "@/lib/types";
 
@@ -29,6 +30,7 @@ export default async function PlaceDetailPage({
     <main className="pb-6">
       {/* 히어로 */}
       <div className="relative h-56 w-full bg-neutral-200">
+        <BackButton />
         {poi.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={poi.imageUrl} alt={poi.name} className="h-full w-full object-cover" />
@@ -67,8 +69,13 @@ export default async function PlaceDetailPage({
           {poi.address && <Row label="소재지" value={poi.address} />}
         </section>
 
-        {/* 채팅 도슨트 */}
-        <DocentPanel poi={poi} />
+        {/* AI 도슨트 채팅으로 이동 */}
+        <Link
+          href={`/docent?placeId=${encodeURIComponent(poi.id)}&name=${encodeURIComponent(poi.name)}`}
+          className="pressable block w-full rounded-card bg-navy py-3.5 text-center font-semibold text-white"
+        >
+          🧑‍🏫 AI 도슨트와 대화하기
+        </Link>
       </div>
     </main>
   );
