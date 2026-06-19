@@ -7,6 +7,7 @@ import { buildWalkablePool } from "@/lib/heritage-pool";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { POIThumbnail, PrimaryButton } from "@/components/ui";
 import KakaoMap from "@/components/KakaoMap";
+import { useUserLocation } from "@/lib/useUserLocation";
 import MapSheet from "@/components/MapSheet";
 import SwipeDeck from "@/components/SwipeDeck";
 import type { POI } from "@/lib/types";
@@ -30,6 +31,7 @@ export default function HomePage() {
   const [pool, setPool] = useState<POI[]>([]);
   const { toggle, contains } = useCourseDraft();
   const draftCount = useCourseDraft((s) => s.pois.length);
+  const center = useUserLocation();
   const router = useRouter();
 
   // KHS 서울 목록 → 워커블 풀(박물관 + 장소형)
@@ -81,7 +83,7 @@ export default function HomePage() {
 
       {/* 지도 섹션 — 탭하면 아래에서 위로 시트로 펼침 */}
       <section className="relative mb-6 overflow-hidden rounded-card shadow-card">
-        <KakaoMap markers={mapPins} center={SEOUL} height={200} />
+        <KakaoMap markers={mapPins} center={center} autoFit={false} height={200} />
         <button
           onClick={() => setMapOpen(true)}
           className="absolute inset-0 z-10"

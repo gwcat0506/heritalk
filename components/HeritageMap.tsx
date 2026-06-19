@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import KakaoMap from "@/components/KakaoMap";
 import { CategoryChip } from "@/components/ui";
-import { categoryHex } from "@/lib/categories";
+import { useUserLocation } from "@/lib/useUserLocation";
+import { categoryHex, isHeritage } from "@/lib/categories";
 import type { POI } from "@/lib/types";
 
 const FILTERS = [
@@ -42,6 +43,7 @@ export default function HeritageMap() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const center = useUserLocation();
   const router = useRouter();
 
   // 필터 줄 드래그 스크롤
@@ -123,7 +125,7 @@ export default function HeritageMap() {
           국가유산 불러오는 중…
         </div>
       ) : (
-        <KakaoMap fill markers={markers} onMarkerClick={onMarker} />
+        <KakaoMap fill markers={markers} onMarkerClick={onMarker} center={center} autoFit={false} />
       )}
 
       {/* 상단 컨트롤 오버레이 */}
@@ -207,13 +209,24 @@ export default function HeritageMap() {
               <p className="py-6 text-center text-sm text-neutral-400">불러오는 중…</p>
             ) : detail ? (
               <div className="no-scrollbar max-h-[46vh] overflow-y-auto">
-                {detail.imageUrl && (
+                {detail.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={detail.imageUrl}
                     alt={detail.name}
                     className="mb-2 h-32 w-full rounded-chip object-cover"
                   />
+                ) : (
+                  <div
+                    className="mb-2 grid h-32 w-full place-items-center rounded-chip text-3xl text-white/90"
+                    style={{
+                      background: `linear-gradient(135deg, ${categoryHex(
+                        detail.designation ?? ""
+                      )}d9, ${categoryHex(detail.designation ?? "")}8c)`,
+                    }}
+                  >
+                    {isHeritage(detail.designation ?? "") ? "🏛️" : "🖼️"}
+                  </div>
                 )}
                 <div className="flex items-center gap-2">
                   <CategoryChip category={detail.designation ?? ""} />

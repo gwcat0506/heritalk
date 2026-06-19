@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed:places": "bun run scripts/seed-places.ts",
-    "seed:passages": "bun run scripts/seed-passages.ts"
+    "seed:passages": "bun run scripts/seed-passages.ts",
+    "seed:images": "bun run scripts/seed-images.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

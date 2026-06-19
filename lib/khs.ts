@@ -52,6 +52,13 @@ function cdata(val: any): string {
   return String(val).trim();
 }
 
+/** KHS 이미지 URL 정제 — 빈값·no_image 플레이스홀더는 undefined. */
+function cleanImage(val: unknown): string | undefined {
+  const s = val ? String(val).trim() : "";
+  if (!s || s.includes("no_image")) return undefined;
+  return s;
+}
+
 /** Haversine 거리(m). */
 export function calcDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -125,6 +132,25 @@ export async function getSeoulHeritageDetail(id: string): Promise<KhsHeritage | 
     address: cdata(item.ccbaLcad),
     era: cdata(item.ccceName),
     description: cdata(item.content),
-    imageUrl: item.imageUrl ? String(item.imageUrl) : undefined,
+    imageUrl: cleanImage(item.imageUrl),
   };
+}
+
+/** 거점 대표 이미지(이미지 API SearchImageOpenapi). no_image 제외 첫 장, 없으면 null. 서버 전용. */
+export async function getSeoulHeritageImage(kdcd: string, asno: string): Promise<string | null> {
+  const url = `${BASE}/SearchImageOpenapi.do?ccbaKdcd=${kdcd}&ccbaAsno=${asno}&ccbaCtcd=${CTCD}`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } });
+    if (!res.ok) return null;
+    const parsed = parser.parse(await res.text());
+    const items = parsed?.result?.item;
+    const arr = Array.isArray(items) ? items : items ? [items] : [];
+    for (const it of arr) {
+      const u = cleanImage(it.imageUrl);
+      if (u) return u;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }

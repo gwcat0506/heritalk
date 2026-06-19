@@ -17,6 +17,7 @@ export default function KakaoMap({
   center,
   height = 360,
   fill = false,
+  autoFit = true,
   onMarkerClick,
 }: {
   markers?: MapMarker[];
@@ -24,6 +25,7 @@ export default function KakaoMap({
   center?: LatLng;
   height?: number;
   fill?: boolean; // true면 부모(relative)를 absolute inset-0로 채움
+  autoFit?: boolean; // true면 마커·경로 전체에 화면 맞춤(setBounds). false면 center 유지
   onMarkerClick?: (poi: POI) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -109,7 +111,7 @@ export default function KakaoMap({
       bounds.extend(pos);
     });
 
-    if (markers.length + paths.length > 0 && !bounds.isEmpty()) {
+    if (autoFit && markers.length + paths.length > 0 && !bounds.isEmpty()) {
       map.setBounds(bounds, 40, 40, 40, 40);
     }
 
@@ -124,7 +126,14 @@ export default function KakaoMap({
     return () => {
       kakao.maps.event.removeListener(map, "zoom_changed", applyLabels);
     };
-  }, [markers, paths, onMarkerClick]);
+  }, [markers, paths, autoFit, onMarkerClick]);
+
+  // center 변화 반영(비동기 geolocation 결과 등) — autoFit=false일 때 중심 유지
+  useEffect(() => {
+    const kakao = (typeof window !== "undefined" && window.kakao) || null;
+    if (!kakao?.maps || !mapRef.current || !center) return;
+    mapRef.current.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+  }, [center?.lat, center?.lng]);
 
   if (error) {
     return (

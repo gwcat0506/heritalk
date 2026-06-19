@@ -1,6 +1,6 @@
 // 거점(국가유산) 영속·어댑터 — 서버 전용(createAdmin 사용). 클라이언트에서 import 금지.
 import { createAdmin } from "./supabase/admin";
-import { getSeoulHeritageDetail, type KhsHeritage } from "./khs";
+import { getSeoulHeritageDetail, getSeoulHeritageImage, type KhsHeritage } from "./khs";
 import type { POI } from "./types";
 
 /** KHS id 형식(`kdcd_asno`)이면 true, 정적 POI id면 false. */
@@ -74,6 +74,11 @@ export async function getPlaceCached(id: string): Promise<KhsHeritage | null> {
   }
   const d = await getSeoulHeritageDetail(id);
   if (!d) return null;
+  if (!d.imageUrl) {
+    const [kdcd, asno] = id.split("_");
+    const img = await getSeoulHeritageImage(d.kdcd ?? kdcd, d.asno ?? asno);
+    if (img) d.imageUrl = img;
+  }
   if (admin) {
     const { error } = await admin.from("places").upsert(khsToRow(d));
     if (error) console.error("place upsert 실패:", error.message);
