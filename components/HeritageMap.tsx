@@ -2,9 +2,12 @@
 // 국가유산청(KHS) 서울 라이브 지도 — 전체화면 오버레이(상단 컨트롤 + 하단 정보 패널), 좌표 클러스터.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import KakaoMap from "@/components/KakaoMap";
+import KakaoMap, { type KakaoMapHandle } from "@/components/KakaoMap";
 import { CategoryChip } from "@/components/ui";
 import { useUserLocation } from "@/lib/useUserLocation";
+import { useCourseDraft } from "@/stores/useCourseDraft";
+import { getUser } from "@/lib/auth";
+import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
 import { categoryHex, isHeritage } from "@/lib/categories";
 import type { POI } from "@/lib/types";
 
@@ -43,12 +46,23 @@ export default function HeritageMap() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const center = useUserLocation();
+  const { center, located, locate } = useUserLocation();
+  const mapRef = useRef<KakaoMapHandle>(null);
   const router = useRouter();
+
+  // 코스 담기(localStorage 드래프트) + 즐겨찾기(로그인)
+  const draftToggle = useCourseDraft((s) => s.toggle);
+  const draftPois = useCourseDraft((s) => s.pois);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
 
   // 필터 줄 드래그 스크롤
   const filterRef = useRef<HTMLDivElement>(null);
   const drag = useRef({ active: false, startX: 0, scroll: 0, moved: false });
+
+  useEffect(() => {
+    getUser().then((u) => setUserId(u?.id ?? null));
+  }, []);
 
   useEffect(() => {
     fetch("/api/heritage/seoul")
@@ -101,6 +115,37 @@ export default function HeritageMap() {
       .finally(() => setDetailLoading(false));
   }, [detailId]);
 
+  // 현재 상세 거점의 POI(좌표·코스담기용) + 즐겨찾기 상태 초기화
+  const detailPoi = useMemo(
+    () => (detailId && group ? group.find((p) => p.id === detailId) : undefined),
+    [detailId, group]
+  );
+  const inCourse = !!detailPoi && draftPois.some((p) => p.id === detailPoi.id);
+
+  useEffect(() => {
+    if (!detailId || !userId) {
+      setBookmarked(false);
+      return;
+    }
+    isBookmarked(detailId).then(setBookmarked);
+  }, [detailId, userId]);
+
+  async function recenter() {
+    const c = await locate();
+    if (c) mapRef.current?.panTo(c);
+    else alert("위치 권한을 허용하면 내 위치로 이동해요.");
+  }
+
+  async function onToggleBookmark() {
+    if (!detail) return;
+    if (!userId) {
+      router.push("/auth");
+      return;
+    }
+    const r = await toggleBookmark({ heritageId: detail.id, heritageName: detail.name });
+    if (r !== null) setBookmarked(r);
+  }
+
   // 필터 드래그 핸들러
   const onDown = (e: React.PointerEvent) => {
     const el = filterRef.current;
@@ -125,7 +170,43 @@ export default function HeritageMap() {
           국가유산 불러오는 중…
         </div>
       ) : (
-        <KakaoMap fill markers={markers} onMarkerClick={onMarker} center={center} autoFit={false} />
+        <KakaoMap
+          ref={mapRef}
+          fill
+          markers={markers}
+          onMarkerClick={onMarker}
+          center={center}
+          userLocation={located ? center : undefined}
+          autoFit={false}
+        />
+      )}
+
+      {/* 플로팅 컨트롤 — 패널 닫혔을 때만(겹침 방지) */}
+      {!group && (
+        <>
+          {draftPois.length > 0 && (
+            <button
+              onClick={() => router.push("/course")}
+              className="pressable absolute bottom-4 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-navy px-4 py-2.5 text-sm font-semibold text-white shadow-card"
+            >
+              담은 {draftPois.length}곳 · 코스 만들기 →
+            </button>
+          )}
+          <button
+            onClick={recenter}
+            aria-label="내 위치로 이동"
+            className="pressable absolute bottom-4 right-3 z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-navy shadow-card"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+              <line x1="12" y1="2" x2="12" y2="5" strokeLinecap="round" />
+              <line x1="12" y1="19" x2="12" y2="22" strokeLinecap="round" />
+              <line x1="2" y1="12" x2="5" y2="12" strokeLinecap="round" />
+              <line x1="19" y1="12" x2="22" y2="12" strokeLinecap="round" />
+            </svg>
+          </button>
+        </>
       )}
 
       {/* 상단 컨트롤 오버레이 */}
@@ -241,21 +322,57 @@ export default function HeritageMap() {
                     {detail.summaryAi ?? detail.description}
                   </p>
                 )}
-                <div className="mt-3 flex gap-2">
-                  {group.length > 1 && (
+                <div className="mt-3 space-y-2">
+                  {/* 빠른 액션: 즐겨찾기 · 코스 담기 · 길찾기 */}
+                  <div className="flex gap-1.5">
                     <button
-                      onClick={() => setDetailId(null)}
-                      className="pressable rounded-chip bg-black/5 px-3 py-1.5 text-xs font-semibold text-neutral-600"
+                      onClick={onToggleBookmark}
+                      className={`pressable rounded-chip px-3 py-1.5 text-xs font-semibold ${
+                        bookmarked ? "bg-red-50 text-red-500" : "bg-black/5 text-neutral-600"
+                      }`}
                     >
-                      ← 목록
+                      {bookmarked ? "♥ 저장됨" : "♡ 즐겨찾기"}
                     </button>
-                  )}
-                  <button
-                    onClick={() => router.push(`/place/${detail.id}`)}
-                    className="pressable rounded-chip bg-navy px-3 py-1.5 text-xs font-semibold text-white"
-                  >
-                    자세히 · 도슨트 →
-                  </button>
+                    {detailPoi && (
+                      <button
+                        onClick={() => draftToggle(detailPoi)}
+                        className={`pressable rounded-chip px-3 py-1.5 text-xs font-semibold ${
+                          inCourse ? "bg-navy/10 text-navy" : "bg-black/5 text-neutral-600"
+                        }`}
+                      >
+                        {inCourse ? "✓ 코스에 담김" : "＋ 코스 담기"}
+                      </button>
+                    )}
+                    {detailPoi && (
+                      <a
+                        href={`https://map.kakao.com/link/to/${encodeURIComponent(
+                          detail.name
+                        )},${detailPoi.latitude},${detailPoi.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="pressable rounded-chip bg-black/5 px-3 py-1.5 text-xs font-semibold text-neutral-600"
+                      >
+                        길찾기
+                      </a>
+                    )}
+                  </div>
+                  {/* 상세·도슨트 */}
+                  <div className="flex gap-2">
+                    {group.length > 1 && (
+                      <button
+                        onClick={() => setDetailId(null)}
+                        className="pressable rounded-chip bg-black/5 px-3 py-1.5 text-xs font-semibold text-neutral-600"
+                      >
+                        ← 목록
+                      </button>
+                    )}
+                    <button
+                      onClick={() => router.push(`/place/${detail.id}`)}
+                      className="pressable flex-1 rounded-chip bg-navy px-3 py-1.5 text-xs font-semibold text-white"
+                    >
+                      자세히 · 도슨트 →
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (

@@ -31,7 +31,7 @@ export default function HomePage() {
   const [pool, setPool] = useState<POI[]>([]);
   const { toggle, contains } = useCourseDraft();
   const draftCount = useCourseDraft((s) => s.pois.length);
-  const center = useUserLocation();
+  const { center } = useUserLocation();
   const router = useRouter();
 
   // KHS 서울 목록 → 워커블 풀(박물관 + 장소형)

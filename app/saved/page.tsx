@@ -1,9 +1,12 @@
 "use client";
-// 저장 탭 — 토이 SavedView 이식: 저장 코스 목록 + 불러오기(루트) + 삭제.
+// 저장 탭 — 관심 장소(즐겨찾기) + 저장한 코스(루트 불러오기·삭제).
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSaved } from "@/stores/useSaved";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { walkEstimate } from "@/lib/poi";
+import { listBookmarks, toggleBookmark, type BookmarkRow } from "@/lib/bookmarks";
 import { POIThumbnail } from "@/components/ui";
 import type { POI } from "@/lib/types";
 
@@ -11,6 +14,17 @@ export default function SavedPage() {
   const { courses, remove } = useSaved();
   const draft = useCourseDraft();
   const router = useRouter();
+
+  const [bookmarks, setBookmarks] = useState<BookmarkRow[]>([]);
+
+  useEffect(() => {
+    listBookmarks().then(setBookmarks);
+  }, []);
+
+  async function unbookmark(b: BookmarkRow) {
+    await toggleBookmark({ heritageId: b.heritage_id, heritageName: b.heritage_name ?? "" });
+    setBookmarks((arr) => arr.filter((x) => x.heritage_id !== b.heritage_id));
+  }
 
   function open(pois: POI[]) {
     draft.clear();
@@ -20,6 +34,32 @@ export default function SavedPage() {
 
   return (
     <main className="px-4 pt-6">
+      {/* 관심 장소(즐겨찾기) */}
+      {bookmarks.length > 0 && (
+        <section className="mb-6">
+          <h1 className="mb-3 text-xl font-bold text-navy">관심 장소</h1>
+          <ul className="space-y-1.5">
+            {bookmarks.map((b) => (
+              <li key={b.heritage_id} className="card flex items-center gap-2 p-3">
+                <span className="text-lg">♥</span>
+                <Link
+                  href={`/place/${b.heritage_id}`}
+                  className="pressable min-w-0 flex-1 truncate text-sm font-medium text-neutral-800"
+                >
+                  {b.heritage_name ?? "이름 없음"}
+                </Link>
+                <button
+                  onClick={() => unbookmark(b)}
+                  className="pressable shrink-0 text-xs text-neutral-400"
+                >
+                  해제
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <h1 className="mb-3 text-xl font-bold text-navy">저장한 코스</h1>
 
       {courses.length === 0 ? (

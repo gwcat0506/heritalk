@@ -1,6 +1,6 @@
 "use client";
-// Kakao 지도 — 마커 + 도보 폴리라인. 키 미설정 시 안내 폴백.
-import { useEffect, useRef, useState } from "react";
+// Kakao 지도 — 마커 + 도보 폴리라인 + 내위치 점. 키 미설정 시 안내 폴백.
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { loadKakao } from "@/lib/kakao";
 import { categoryHex } from "./ui";
 import type { LatLng, POI } from "@/lib/types";
@@ -11,27 +11,47 @@ export interface MapMarker {
   count?: number; // 좌표 클러스터 개수(>1이면 묶음 마커)
 }
 
-export default function KakaoMap({
-  markers = [],
-  paths = [],
-  center,
-  height = 360,
-  fill = false,
-  autoFit = true,
-  onMarkerClick,
-}: {
+export interface KakaoMapHandle {
+  panTo: (c: LatLng) => void; // 명령형 재정렬(부드럽게)
+}
+
+interface KakaoMapProps {
   markers?: MapMarker[];
   paths?: LatLng[][];
   center?: LatLng;
+  userLocation?: LatLng; // 있으면 내 위치 파란 점 표시
   height?: number;
   fill?: boolean; // true면 부모(relative)를 absolute inset-0로 채움
   autoFit?: boolean; // true면 마커·경로 전체에 화면 맞춤(setBounds). false면 center 유지
   onMarkerClick?: (poi: POI) => void;
-}) {
+}
+
+const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function KakaoMap(
+  {
+    markers = [],
+    paths = [],
+    center,
+    userLocation,
+    height = 360,
+    fill = false,
+    autoFit = true,
+    onMarkerClick,
+  },
+  fwdRef
+) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const overlaysRef = useRef<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // 명령형 핸들 — 내 위치 정렬 버튼 등에서 호출
+  useImperativeHandle(fwdRef, () => ({
+    panTo: (c: LatLng) => {
+      const kakao = (typeof window !== "undefined" && window.kakao) || null;
+      if (!kakao?.maps || !mapRef.current) return;
+      mapRef.current.panTo(new kakao.maps.LatLng(c.lat, c.lng));
+    },
+  }), []);
 
   // 지도 생성
   useEffect(() => {
@@ -53,7 +73,7 @@ export default function KakaoMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 마커·폴리라인 갱신
+  // 마커·폴리라인·내위치 갱신
   useEffect(() => {
     const kakao = (typeof window !== "undefined" && window.kakao) || null;
     if (!kakao?.maps || !mapRef.current) return;
@@ -111,6 +131,23 @@ export default function KakaoMap({
       bounds.extend(pos);
     });
 
+    // 내 위치 점(파란 점 + 반투명 헤일로) — 마커 위에
+    if (userLocation) {
+      const me = document.createElement("div");
+      me.innerHTML = `<div style="position:relative;width:18px;height:18px">
+        <span style="position:absolute;inset:-7px;border-radius:50%;background:rgba(37,99,235,.18)"></span>
+        <span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)"></span>
+      </div>`;
+      const meOverlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
+        content: me,
+        yAnchor: 0.5,
+        zIndex: 5,
+      });
+      meOverlay.setMap(map);
+      overlaysRef.current.push(meOverlay);
+    }
+
     if (autoFit && markers.length + paths.length > 0 && !bounds.isEmpty()) {
       map.setBounds(bounds, 40, 40, 40, 40);
     }
@@ -126,7 +163,7 @@ export default function KakaoMap({
     return () => {
       kakao.maps.event.removeListener(map, "zoom_changed", applyLabels);
     };
-  }, [markers, paths, autoFit, onMarkerClick]);
+  }, [markers, paths, autoFit, userLocation, onMarkerClick]);
 
   // center 변화 반영(비동기 geolocation 결과 등) — autoFit=false일 때 중심 유지
   useEffect(() => {
@@ -154,4 +191,6 @@ export default function KakaoMap({
 
   if (fill) return <div ref={ref} className="absolute inset-0" />;
   return <div ref={ref} className="rounded-card" style={{ width: "100%", height }} />;
-}
+});
+
+export default KakaoMap;
