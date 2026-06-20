@@ -52,11 +52,30 @@ function cdata(val: any): string {
   return String(val).trim();
 }
 
-/** KHS 이미지 URL 정제 — 빈값·no_image 플레이스홀더는 undefined. */
+/** KHS 이미지 URL 정제 — 첫 유효 URL 하나만. 다중 노드(배열)·콤마결합·no_image 처리. */
 function cleanImage(val: unknown): string | undefined {
-  const s = val ? String(val).trim() : "";
-  if (!s || s.includes("no_image")) return undefined;
-  return s;
+  if (val == null) return undefined;
+  // 다중 <imageUrl> 노드는 파서가 배열로 줌 → 첫 유효 항목
+  if (Array.isArray(val)) {
+    for (const v of val) {
+      const u = cleanImage(v);
+      if (u) return u;
+    }
+    return undefined;
+  }
+  const s = String(val).trim();
+  if (!s) return undefined;
+  // 콤마로 합쳐진 경우 첫 유효 URL만
+  if (s.includes(",")) {
+    for (const part of s.split(",")) {
+      const u = cleanImage(part);
+      if (u) return u;
+    }
+    return undefined;
+  }
+  if (s.includes("no_image")) return undefined;
+  // http→https 정규화(khs.go.kr이 https 지원 → 혼합콘텐츠·리다이렉트 방지)
+  return s.replace(/^http:\/\//i, "https://");
 }
 
 /** Haversine 거리(m). */
