@@ -9,6 +9,7 @@ function DocentInner() {
   const params = useSearchParams();
   const placeId = params.get("placeId");
   const name = params.get("name") ?? "";
+  const session = params.get("session") ?? undefined;
   const poi: POI | undefined = placeId
     ? {
         id: placeId,
@@ -30,7 +31,7 @@ function DocentInner() {
         </p>
         <h1 className="text-2xl font-bold text-navy">AI 도슨트</h1>
       </header>
-      <DocentPanel poi={poi} className="h-[calc(100dvh-11rem)]" />
+      <DocentPanel poi={poi} sessionParam={session} className="h-[calc(100dvh-11rem)]" />
     </main>
   );
 }

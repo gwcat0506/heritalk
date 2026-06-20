@@ -1,6 +1,7 @@
 "use client";
 // 마이 — 로그인/회원가입 연결 + 개인 설정(user_metadata 저장).
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getUser, signOut, updateSettings } from "@/lib/auth";
 import { PrimaryButton } from "@/components/ui";
@@ -108,6 +109,16 @@ export default function MyPage() {
           로그아웃
         </button>
       </div>
+
+      {/* 바로가기 */}
+      <Link
+        href="/docent"
+        className="card pressable mb-5 flex items-center gap-3 p-4 text-sm"
+      >
+        <span className="text-lg">🧑‍🏫</span>
+        <span className="flex-1 font-medium text-neutral-800">도슨트 대화 기록</span>
+        <span className="text-neutral-300">›</span>
+      </Link>
 
       {/* 설정 */}
       <section className="space-y-5">
