@@ -33,43 +33,70 @@ export function calcDistance(lat1: number, lng1: number, lat2: number, lng2: num
   return Math.round(2 * R * Math.asin(Math.sqrt(a)))
 }
 
-// 위도 경도 → 시도 코드 추정
-function toCityCode(lat: number, lng: number): string {
-  if (lat >= 37.4 && lat <= 37.7 && lng >= 126.7 && lng <= 127.3) return '11' // 서울
-  if (lat >= 35.0 && lat <= 35.3 && lng >= 128.9 && lng <= 129.3) return '21' // 부산
-  if (lat >= 35.8 && lat <= 36.0 && lng >= 128.4 && lng <= 128.8) return '22' // 대구
-  if (lat >= 37.3 && lat <= 37.6 && lng >= 126.5 && lng <= 126.8) return '23' // 인천
-  if (lat >= 35.1 && lat <= 35.2 && lng >= 126.8 && lng <= 127.0) return '24' // 광주
-  if (lat >= 36.2 && lat <= 36.5 && lng >= 127.3 && lng <= 127.5) return '25' // 대전
-  if (lat >= 35.5 && lat <= 35.6 && lng >= 129.2 && lng <= 129.4) return '26' // 울산
-  if (lat >= 37.3 && lat <= 37.8 && lng >= 126.5 && lng <= 127.9) return '31' // 경기
-  return '11' // 기본값 서울
+// 전국 17개 시·도 중심 좌표 + 국가유산청 시도코드(ccbaCtcd)
+const SIDO_CENTERS: { code: string; name: string; lat: number; lng: number }[] = [
+  { code: '11', name: '서울', lat: 37.5665, lng: 126.9780 },
+  { code: '21', name: '부산', lat: 35.1796, lng: 129.0756 },
+  { code: '22', name: '대구', lat: 35.8714, lng: 128.6014 },
+  { code: '23', name: '인천', lat: 37.4563, lng: 126.7052 },
+  { code: '24', name: '광주', lat: 35.1595, lng: 126.8526 },
+  { code: '25', name: '대전', lat: 36.3504, lng: 127.3845 },
+  { code: '26', name: '울산', lat: 35.5384, lng: 129.3114 },
+  { code: '45', name: '세종', lat: 36.4801, lng: 127.2890 },
+  { code: '31', name: '경기', lat: 37.4138, lng: 127.5183 },
+  { code: '32', name: '강원', lat: 37.8228, lng: 128.1555 },
+  { code: '33', name: '충북', lat: 36.6357, lng: 127.4914 },
+  { code: '34', name: '충남', lat: 36.6588, lng: 126.6728 },
+  { code: '35', name: '전북', lat: 35.7175, lng: 127.1530 },
+  { code: '36', name: '전남', lat: 34.8679, lng: 126.9910 },
+  { code: '37', name: '경북', lat: 36.4919, lng: 128.8889 },
+  { code: '38', name: '경남', lat: 35.4606, lng: 128.2132 },
+  { code: '50', name: '제주', lat: 33.4996, lng: 126.5312 },
+]
+
+// 좌표 주변에서 조회할 시·도 코드들을 고른다.
+// 큰 도(경북 등)는 중심점이 멀어서 '가까운 N곳'만 뽑으면 정작 그 도가 빠진다.
+// 그래서 중심점이 maxKm 이내인 시·도를 모두 포함한다(최소 4곳은 보장).
+function nearbyCityCodes(lat: number, lng: number, maxKm = 140): string[] {
+  const ranked = SIDO_CENTERS
+    .map(s => ({ code: s.code, d: calcDistance(lat, lng, s.lat, s.lng) }))
+    .sort((a, b) => a.d - b.d)
+  const within = ranked.filter(s => s.d <= maxKm * 1000)
+  return (within.length >= 4 ? within : ranked.slice(0, 4)).map(s => s.code)
 }
 
-// 지정종류 코드: 국보(11), 보물(12), 사적(13), 명승(14), 천연기념물(15), 시도유형(21), 시도무형(22), 시도기념물(23)
+// 지정종류 코드: 국보(11), 보물(12), 사적(13), 명승(14), 천연기념물(15), 시도유형(21), 시도기념물(23)
 const KDCD_LIST = ['11', '12', '13', '14', '15', '21', '23']
 
 // 단일 ccbaKdcd + ccbaCtcd 조합으로 목록 조회
+// 한 건이 실패해도 전체가 죽지 않도록 항상 배열을 반환(에러 시 빈 배열)
 async function fetchList(cityCode: string, kdcd: string): Promise<any[]> {
   const url = `${BASE}/SearchKindOpenapiList.do?pageUnit=100&pageIndex=1&ccbaCtcd=${cityCode}&ccbaKdcd=${kdcd}`
-  const res = await fetch(url, { next: { revalidate: 3600 } })
-  const xml = await res.text()
-  const parsed = parser.parse(xml)
-  const items = parsed?.result?.item
-  if (!items) return []
-  return Array.isArray(items) ? items : [items]
+  try {
+    const res = await fetch(url, { next: { revalidate: 3600 } })
+    if (!res.ok) return []
+    const xml = await res.text()
+    const parsed = parser.parse(xml)
+    const items = parsed?.result?.item
+    if (!items) return []
+    return Array.isArray(items) ? items : [items]
+  } catch {
+    return []
+  }
 }
 
-// 주변 유산 목록 (반경 radiusM 미터 이내, 여러 지정종류 병렬 조회)
+// 주변 유산 목록 (반경 radiusM 미터 이내, 가까운 시·도 × 여러 지정종류 병렬 조회)
 export async function getNearbyHeritage(
   lat: number,
   lng: number,
   radiusM = 2000
 ): Promise<Heritage[]> {
-  const cityCode = toCityCode(lat, lng)
+  const cityCodes = nearbyCityCodes(lat, lng)
 
-  // 여러 지정종류 병렬 조회
-  const results = await Promise.all(KDCD_LIST.map(kdcd => fetchList(cityCode, kdcd)))
+  // 가까운 시·도 × 지정종류를 모두 병렬 조회 (먼 결과는 아래 반경 필터에서 제거)
+  const results = await Promise.all(
+    cityCodes.flatMap(city => KDCD_LIST.map(kdcd => fetchList(city, kdcd)))
+  )
   const allItems = results.flat()
 
   return allItems
@@ -89,7 +116,7 @@ export async function getNearbyHeritage(
     .map(h => ({ ...h, distance: calcDistance(lat, lng, h.lat, h.lng) }))
     .filter(h => (h.distance ?? Infinity) <= radiusM)
     .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
-    // 같은 좌표 중복 제거 (id 기준)
+    // 같은 id 중복 제거
     .filter((h, i, arr) => arr.findIndex(x => x.id === h.id) === i)
 }
 
