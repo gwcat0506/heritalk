@@ -109,7 +109,7 @@ export default function CoursePage() {
             disabled={pois.length < 2}
             onClick={() => router.push("/course/result")}
           >
-            {pois.length < 2 ? "거점 2곳 이상 담아주세요" : "이 코스로 걷기"}
+            {pois.length < 2 ? "거점 2곳 이상 담아주세요" : "코스 완성하기"}
           </PrimaryButton>
         </>
       )}

@@ -99,6 +99,13 @@ export default function RouteResultPage() {
             ))}
           </ol>
 
+          <button
+            onClick={() => router.push("/docent?tab=tour")}
+            className="pressable mb-2 w-full rounded-card bg-ai py-3 text-sm font-semibold text-white"
+          >
+            🎧 AI 도슨트와 이 코스 걷기
+          </button>
+
           <PrimaryButton
             disabled={saved || contains(pois)}
             onClick={() => {
