@@ -17,7 +17,9 @@ export async function signUp(email: string, password: string, nickname: string) 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { nickname } },
+    // 확인 메일 링크가 가입한 도메인(로컬=localhost, 배포=vercel)으로 돌아오도록 명시.
+    // ※ 해당 /auth/callback이 Supabase Redirect URLs 허용목록에 있어야 함.
+    options: { data: { nickname }, emailRedirectTo: callbackUrl() },
   });
   if (error) throw error;
   if (data.user) {
