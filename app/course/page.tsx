@@ -2,9 +2,15 @@
 // 코스 허브 — 토이 CourseHubView 이식: 담은 거점 편집(순서·삭제·시작점) + 예상 + 걷기.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Map, Sparkles, ChevronUp, ChevronDown, Route } from "lucide-react";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { walkEstimate } from "@/lib/poi";
-import { POIThumbnail, PrimaryButton, CategoryChip } from "@/components/ui";
+import {
+  POIThumbnail,
+  PrimaryButton,
+  CategoryChip,
+  EmptyState,
+} from "@/components/ui";
 
 export default function CoursePage() {
   const { pois, startId, remove, swap, setStart, clear } = useCourseDraft();
@@ -25,23 +31,30 @@ export default function CoursePage() {
 
       {/* 거점 추가 진입 */}
       <div className="mb-4 grid grid-cols-2 gap-3">
-        <Link href="/map" className="pressable card p-4 text-center">
-          <div className="text-2xl">🗺️</div>
-          <div className="mt-1 text-sm font-semibold">주변에서 고르기</div>
+        <Link href="/map" className="pressable card flex flex-col items-center p-4 text-center">
+          <span className="grid h-11 w-11 place-items-center rounded-chip bg-ai-gradient text-ai">
+            <Map className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </span>
+          <div className="mt-2 text-sm font-semibold">주변에서 고르기</div>
           <div className="text-xs text-neutral-500">지도에서 담기</div>
         </Link>
-        <Link href="/" className="pressable card p-4 text-center">
-          <div className="text-2xl">✨</div>
-          <div className="mt-1 text-sm font-semibold">추천에서 고르기</div>
+        <Link href="/" className="pressable card flex flex-col items-center p-4 text-center">
+          <span className="grid h-11 w-11 place-items-center rounded-chip bg-ai-gradient text-ai">
+            <Sparkles className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </span>
+          <div className="mt-2 text-sm font-semibold">추천에서 고르기</div>
           <div className="text-xs text-neutral-500">홈 AI 추천</div>
         </Link>
       </div>
 
       {pois.length === 0 ? (
-        <div className="card grid place-items-center p-10 text-center text-sm text-neutral-500">
-          담은 거점이 없어요.
-          <br />
-          지도나 홈에서 거점을 담아보세요.
+        <div className="card">
+          <EmptyState
+            icon={<Route className="h-7 w-7" strokeWidth={1.8} aria-hidden />}
+            title="아직 담은 거점이 없어요"
+            description="위에서 지도나 AI 추천으로 거점을 담으면 나만의 도보 코스가 완성돼요."
+            action={{ label: "지도에서 거점 찾기", href: "/map" }}
+          />
         </div>
       ) : (
         <>
@@ -76,7 +89,7 @@ export default function CoursePage() {
                     disabled={i === 0}
                     aria-label="위로"
                   >
-                    ▲
+                    <ChevronUp className="h-4 w-4" aria-hidden />
                   </button>
                   <button
                     onClick={() => i < pois.length - 1 && swap(i, i + 1)}
@@ -84,7 +97,7 @@ export default function CoursePage() {
                     disabled={i === pois.length - 1}
                     aria-label="아래로"
                   >
-                    ▼
+                    <ChevronDown className="h-4 w-4" aria-hidden />
                   </button>
                 </div>
                 <div className="flex shrink-0 flex-col gap-1">

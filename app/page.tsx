@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { districts, poisIn, nearby, walkEstimate } from "@/lib/poi";
 import { buildWalkablePool } from "@/lib/heritage-pool";
 import { useCourseDraft } from "@/stores/useCourseDraft";
-import { POIThumbnail, PrimaryButton } from "@/components/ui";
+import { POIThumbnail, PrimaryButton, Wordmark, Skeleton } from "@/components/ui";
+import { Sparkles, RotateCw, ArrowRight, MapPin } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { useUserLocation } from "@/lib/useUserLocation";
 import MapSheet from "@/components/MapSheet";
@@ -16,13 +17,21 @@ import type { POI } from "@/lib/types";
 const SEOUL = { lat: 37.5759, lng: 126.9769 };
 
 function pickRecommendation(pool: POI[], seed: number): POI[] {
-  // 거점 3곳 이상인 자치구 중 하나를 골라 근접 2~3곳 추천.
-  const ds = districts(pool).filter((d) => poisIn(pool, d).length >= 3);
+  // 첫인상 — 실제 사진이 있는 거점 3곳 이상인 자치구를 우선해서 추천.
+  const hasImg = (p: POI) => !!p.imageUrl;
+  const imagedDs = districts(pool).filter(
+    (d) => poisIn(pool, d).filter(hasImg).length >= 3
+  );
+  const ds = imagedDs.length
+    ? imagedDs
+    : districts(pool).filter((d) => poisIn(pool, d).length >= 3);
   if (ds.length === 0) return pool.slice(0, 3);
   const d = ds[seed % ds.length];
-  const p = poisIn(pool, d);
-  const s = seed % p.length;
-  return [p[s], p[(s + 1) % p.length], p[(s + 2) % p.length]];
+  const inDistrict = poisIn(pool, d);
+  const imaged = inDistrict.filter(hasImg);
+  const base = imaged.length >= 3 ? imaged : inDistrict;
+  const s = seed % base.length;
+  return [base[s], base[(s + 1) % base.length], base[(s + 2) % base.length]];
 }
 
 export default function HomePage() {
@@ -53,8 +62,13 @@ export default function HomePage() {
 
   const deckPool = useMemo(() => {
     if (!ready) return [];
-    const near = nearby(pool, SEOUL, 8_000, 14);
-    return [...near].sort((a, b) => ((a.id + seed) > (b.id + seed) ? 1 : -1)).slice(0, 12);
+    const near = nearby(pool, SEOUL, 12_000, 30);
+    const shuffle = (arr: POI[]) =>
+      [...arr].sort((a, b) => ((a.id + seed) > (b.id + seed) ? 1 : -1));
+    // 덱은 배열 끝에서부터 소비된다 → 사진 있는 거점을 끝에 배치해 먼저 보이게(첫인상).
+    const imaged = shuffle(near.filter((p) => p.imageUrl));
+    const others = shuffle(near.filter((p) => !p.imageUrl));
+    return [...others, ...imaged].slice(-12);
   }, [pool, ready, seed]);
 
   function walkThisCourse() {
@@ -74,32 +88,47 @@ export default function HomePage() {
 
   return (
     <main className="px-4 pt-6">
-      <header className="mb-4 flex items-start justify-between">
-        <div>
-          <p className="text-sm text-neutral-500">오늘, 어디를 걸어볼까요?</p>
-          <h1 className="text-2xl font-bold text-navy">걷는 시간</h1>
-        </div>
+      <header className="mb-5">
+        <Wordmark size="lg" />
+        <p className="mt-2 text-sm text-neutral-500">오늘, 어디를 걸어볼까요?</p>
+        {ready && rec[0] && (
+          <span className="chip mt-2 bg-black/5 text-neutral-600">
+            <MapPin className="h-3.5 w-3.5 text-navy" aria-hidden />
+            서울 {rec[0].district} 일대 추천
+          </span>
+        )}
       </header>
 
       {/* 지도 섹션 — 탭하면 아래에서 위로 시트로 펼침 */}
-      <section className="relative mb-6 overflow-hidden rounded-card shadow-card">
-        <KakaoMap markers={mapPins} center={center} autoFit={false} height={200} />
-        <button
-          onClick={() => setMapOpen(true)}
-          className="absolute inset-0 z-10"
-          aria-label="지도 열기"
-        />
-        <span className="pointer-events-none absolute bottom-3 right-3 z-20 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
-          지도 보기 →
-        </span>
-      </section>
+      {ready ? (
+        <section className="relative mb-6 overflow-hidden rounded-card shadow-card">
+          <KakaoMap markers={mapPins} center={center} autoFit={false} height={200} />
+          <button
+            onClick={() => setMapOpen(true)}
+            className="absolute inset-0 z-10"
+            aria-label="지도 열기"
+          />
+          <span className="pointer-events-none absolute bottom-3 right-3 z-20 inline-flex items-center gap-1 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
+            지도 보기 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </span>
+        </section>
+      ) : (
+        <Skeleton className="mb-6 h-[200px] w-full rounded-card" />
+      )}
 
       {/* AI 추천 코스 */}
       <section className="mb-6 rounded-card bg-ai-gradient p-4 shadow-card">
         <div className="mb-3 flex items-center justify-between">
-          <span className="chip bg-ai/15 text-ai">✨ AI 추천 코스</span>
-          <button onClick={() => setSeed((s) => s + 1)} className="pressable text-sm text-ai">
-            다시 추천 ↻
+          <span className="chip bg-ai/15 text-ai">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            AI 추천 코스
+          </span>
+          <button
+            onClick={() => setSeed((s) => s + 1)}
+            className="pressable inline-flex items-center gap-1 text-sm text-ai"
+          >
+            <RotateCw className="h-3.5 w-3.5" aria-hidden />
+            다시 추천
           </button>
         </div>
         {ready ? (
@@ -108,7 +137,9 @@ export default function HomePage() {
               {rec.map((p, i) => (
                 <div key={p.id} className="flex items-center gap-2">
                   <POIThumbnail poi={p} className="h-14 w-14 rounded-chip" />
-                  {i < rec.length - 1 && <span className="text-neutral-400">→</span>}
+                  {i < rec.length - 1 && (
+                    <ArrowRight className="h-4 w-4 text-neutral-400" aria-hidden />
+                  )}
                 </div>
               ))}
             </div>
@@ -122,7 +153,15 @@ export default function HomePage() {
             <PrimaryButton onClick={walkThisCourse}>이 코스로 걷기</PrimaryButton>
           </>
         ) : (
-          <div className="h-28 animate-pulse rounded-chip bg-white/50" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 w-14 rounded-chip bg-white/60" />
+              <Skeleton className="h-14 w-14 rounded-chip bg-white/60" />
+              <Skeleton className="h-14 w-14 rounded-chip bg-white/60" />
+            </div>
+            <Skeleton className="h-4 w-3/4 bg-white/60" />
+            <Skeleton className="h-11 w-full rounded-card bg-white/60" />
+          </div>
         )}
       </section>
 
@@ -140,7 +179,7 @@ export default function HomePage() {
             onRefill={() => setSeed((s) => s + 1)}
           />
         ) : (
-          <div className="h-[380px] animate-pulse rounded-card bg-neutral-100" />
+          <Skeleton className="h-[380px] w-full rounded-card" />
         )}
       </section>
 

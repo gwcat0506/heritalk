@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { useSaved } from "@/stores/useSaved";
 import KakaoMap, { type MapMarker } from "@/components/KakaoMap";
-import { RouteSummary, POIThumbnail, PrimaryButton } from "@/components/ui";
+import { RouteSummary, POIThumbnail, PrimaryButton, Skeleton } from "@/components/ui";
+import { ChevronLeft, Headphones, Check, RefreshCw } from "lucide-react";
 import type { Route } from "@/lib/types";
 
 export default function RouteResultPage() {
@@ -17,12 +18,14 @@ export default function RouteResultPage() {
   const [loading, setLoading] = useState(true);
   const [latency, setLatency] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
+  const [nonce, setNonce] = useState(0); // 재시도 트리거
 
   useEffect(() => {
     if (pois.length < 2) {
       router.replace("/course");
       return;
     }
+    setError(null);
     setLoading(true);
     fetch("/api/route/build", {
       method: "POST",
@@ -41,7 +44,7 @@ export default function RouteResultPage() {
       .catch((e) => setError(String(e.message ?? e)))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [nonce]);
 
   const markers: MapMarker[] =
     route?.stops.map((s) => ({ poi: s.poi, order: s.order })) ?? [];
@@ -50,19 +53,34 @@ export default function RouteResultPage() {
     <main className="px-4 pt-6">
       <button
         onClick={() => router.back()}
-        className="pressable mb-3 text-sm text-neutral-500"
+        className="pressable mb-3 inline-flex items-center gap-0.5 text-sm text-neutral-500"
       >
-        ← 코스 편집
+        <ChevronLeft className="h-4 w-4" aria-hidden />
+        코스 편집
       </button>
       <h1 className="mb-3 text-xl font-bold text-navy">오늘의 도보 코스</h1>
 
       {loading && (
-        <div className="card grid h-40 place-items-center text-sm text-neutral-500">
-          도보 경로 계산 중…
+        <div className="space-y-3">
+          <Skeleton className="h-[300px] w-full rounded-card" />
+          <Skeleton className="h-20 w-full rounded-card" />
+          <p className="flex items-center justify-center gap-2 py-1 text-sm text-neutral-500">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-200 border-t-navy" />
+            도보 경로 계산 중…
+          </p>
         </div>
       )}
       {error && (
-        <div className="card p-6 text-center text-sm text-red-500">{error}</div>
+        <div className="card flex flex-col items-center gap-3 p-6 text-center">
+          <p className="text-sm text-red-500">도보 경로를 만들지 못했어요.</p>
+          <button
+            onClick={() => setNonce((n) => n + 1)}
+            className="pressable inline-flex items-center gap-1 rounded-card bg-navy px-4 py-2 text-sm font-semibold text-white"
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden />
+            다시 시도
+          </button>
+        </div>
       )}
 
       {route && (
@@ -101,9 +119,10 @@ export default function RouteResultPage() {
 
           <button
             onClick={() => router.push("/docent?tab=tour")}
-            className="pressable mb-2 w-full rounded-card bg-ai py-3 text-sm font-semibold text-white"
+            className="pressable mb-2 flex w-full items-center justify-center gap-2 rounded-card bg-ai py-3 text-sm font-semibold text-white"
           >
-            🎧 AI 도슨트와 이 코스 걷기
+            <Headphones className="h-4 w-4" aria-hidden />
+            AI 도슨트와 이 코스 걷기
           </button>
 
           <PrimaryButton
@@ -113,7 +132,14 @@ export default function RouteResultPage() {
               setSaved(true);
             }}
           >
-            {saved || contains(pois) ? "저장됨 ✓" : "이 코스 저장하기"}
+            {saved || contains(pois) ? (
+              <span className="inline-flex items-center gap-1">
+                <Check className="h-4 w-4" aria-hidden />
+                저장됨
+              </span>
+            ) : (
+              "이 코스 저장하기"
+            )}
           </PrimaryButton>
 
           {latency !== null && (

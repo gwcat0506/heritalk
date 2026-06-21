@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getUser, signOut, updateSettings } from "@/lib/auth";
-import { PrimaryButton } from "@/components/ui";
+import { PrimaryButton, EmptyState } from "@/components/ui";
+import { UserCircle, MessagesSquare, ChevronRight } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const LEVELS = [
@@ -80,14 +81,15 @@ export default function MyPage() {
   // 비로그인
   if (!user)
     return (
-      <main className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-8">
-        <div className="grid h-16 w-16 place-items-center rounded-full bg-ai/15 text-2xl">🧑‍🦰</div>
-        <div className="text-center">
-          <p className="mb-1 font-semibold text-neutral-900">로그인이 필요해요</p>
-          <p className="text-sm text-neutral-400">방문 기록·취향 설정을 저장하려면 로그인하세요</p>
-        </div>
-        <div className="w-full max-w-xs">
-          <PrimaryButton onClick={() => router.push("/auth")}>로그인 / 회원가입</PrimaryButton>
+      <main className="px-4 pt-6">
+        <h1 className="mb-3 text-2xl font-bold text-navy">마이</h1>
+        <div className="card">
+          <EmptyState
+            icon={<UserCircle className="h-8 w-8" strokeWidth={1.6} aria-hidden />}
+            title="로그인이 필요해요"
+            description="방문 기록·취향 설정과 즐겨찾기를 저장하려면 로그인하세요."
+            action={{ label: "로그인 / 회원가입", href: "/auth" }}
+          />
         </div>
       </main>
     );
@@ -115,9 +117,9 @@ export default function MyPage() {
         href="/docent"
         className="card pressable mb-5 flex items-center gap-3 p-4 text-sm"
       >
-        <span className="text-lg">🧑‍🏫</span>
+        <MessagesSquare className="h-5 w-5 text-ai" aria-hidden />
         <span className="flex-1 font-medium text-neutral-800">도슨트 대화 기록</span>
-        <span className="text-neutral-300">›</span>
+        <ChevronRight className="h-4 w-4 text-neutral-300" aria-hidden />
       </Link>
 
       {/* 설정 */}

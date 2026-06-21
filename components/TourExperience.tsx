@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import {
+  Footprints,
+  MapPin,
+  ArrowRight,
+  RefreshCw,
+  Save,
+  Check,
+  Play,
+  Pause,
+} from "lucide-react";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { getUser } from "@/lib/auth";
 import { distanceMeters, nearby } from "@/lib/poi";
@@ -28,14 +38,16 @@ export default function TourExperience({ source }: { source: TourSource }) {
   const [tour, setTour] = useState<TourData | null>(null);
   const [level, setLevel] = useState("general");
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
+  const [nonce, setNonce] = useState(0); // 재시도 트리거
 
-  // 요청 키 — pois 시그니처/saved id 변할 때만 재요청
+  // 요청 키 — pois 시그니처/saved id 변할 때만 재요청(+재시도 nonce)
   const reqKey = useMemo(() => {
-    if (source.kind === "saved") return `saved:${source.id}`;
-    if (source.kind === "pois") return `pois:${source.pois.map((p) => p.id).join(",")}`;
-    return `draft:${draftPois.map((p) => p.id).join(",")}`;
+    if (source.kind === "saved") return `saved:${source.id}:${nonce}`;
+    if (source.kind === "pois")
+      return `pois:${source.pois.map((p) => p.id).join(",")}:${nonce}`;
+    return `draft:${draftPois.map((p) => p.id).join(",")}:${nonce}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, draftPois]);
+  }, [source, draftPois, nonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +90,18 @@ export default function TourExperience({ source }: { source: TourSource }) {
 
   if (status === "empty") return <TourEmpty />;
   if (status === "error")
-    return <Centered>투어를 만들지 못했어요. 잠시 후 다시 시도해 주세요.</Centered>;
+    return (
+      <Centered>
+        <p className="mb-3">투어를 만들지 못했어요.</p>
+        <button
+          onClick={() => setNonce((n) => n + 1)}
+          className="pressable inline-flex items-center gap-1 rounded-card bg-navy px-4 py-2 text-sm font-semibold text-white"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden />
+          다시 시도
+        </button>
+      </Centered>
+    );
   if (status !== "ready" || !tour)
     return (
       <Centered>
@@ -141,7 +164,9 @@ function TourEmpty() {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-      <div className="grid h-16 w-16 place-items-center rounded-card bg-ai/10 text-3xl">🚶</div>
+      <div className="grid h-16 w-16 place-items-center rounded-full bg-ai-gradient text-ai">
+        <Footprints className="h-7 w-7" strokeWidth={1.8} aria-hidden />
+      </div>
       <p className="text-sm text-neutral-500">
         코스에 거점을 2곳 이상 담으면
         <br />
@@ -151,15 +176,22 @@ function TourEmpty() {
         <button
           onClick={autoCourse}
           disabled={busy}
-          className="pressable rounded-card bg-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="pressable inline-flex items-center justify-center gap-1.5 rounded-card bg-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {busy ? "주변 거점 찾는 중…" : "📍 내 주변 코스 추천"}
+          {busy ? (
+            "주변 거점 찾는 중…"
+          ) : (
+            <>
+              <MapPin className="h-4 w-4" aria-hidden />내 주변 코스 추천
+            </>
+          )}
         </button>
         <Link
           href="/course"
-          className="pressable rounded-card bg-ai/10 px-5 py-2.5 text-sm font-medium text-ai"
+          className="pressable inline-flex items-center justify-center gap-1 rounded-card bg-ai/10 px-5 py-2.5 text-sm font-medium text-ai"
         >
-          코스 직접 만들기 →
+          코스 직접 만들기
+          <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
       {msg && <p className="text-xs text-amber-700">{msg}</p>}
@@ -442,9 +474,21 @@ function TourPlayer({
           <button
             onClick={onSave}
             disabled={saving || saved}
-            className="pressable rounded-chip bg-black/5 px-2.5 py-1 text-xs font-semibold text-neutral-600 disabled:opacity-60"
+            className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-semibold text-neutral-600 disabled:opacity-60"
           >
-            {saved ? "✓ 저장됨" : saving ? "저장 중…" : "💾 투어 저장"}
+            {saved ? (
+              <>
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                저장됨
+              </>
+            ) : saving ? (
+              "저장 중…"
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5" aria-hidden />
+                투어 저장
+              </>
+            )}
           </button>
         )}
       </div>
@@ -467,9 +511,14 @@ function TourPlayer({
                 if (traveled >= total) seekTo(0);
                 setPlaying((p) => !p);
               }}
-              className="pressable grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-sm text-white"
+              className="pressable grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-white"
+              aria-label={playing ? "일시정지" : "재생"}
             >
-              {playing ? "⏸" : "▶"}
+              {playing ? (
+                <Pause className="h-4 w-4 fill-current" aria-hidden />
+              ) : (
+                <Play className="h-4 w-4 fill-current" aria-hidden />
+              )}
             </button>
             <input
               type="range"

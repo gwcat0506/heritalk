@@ -1,12 +1,17 @@
 // 거점 상세 — 정적 116 + KHS 라이브 동시 지원. 히어로 + 정보 + 코스 담기 + 채팅 도슨트.
 import { notFound } from "next/navigation";
-import { getPoi } from "@/lib/data";
+import { getPoi, ALL_POIS } from "@/lib/data";
 import { isKhsId, getPlaceCached, khsToPoi } from "@/lib/places";
 import { categoryHex, isHeritage } from "@/lib/categories";
+import { nearby } from "@/lib/poi";
 import Link from "next/link";
+import { Landmark, ImageIcon, Sparkles, MessagesSquare } from "lucide-react";
 import BackButton from "@/components/BackButton";
+import BookmarkButton from "@/components/BookmarkButton";
+import ExpandableText from "@/components/ExpandableText";
+import { POIThumbnail, CategoryChip } from "@/components/ui";
 import PlaceActions from "./PlaceActions";
-import type { POI } from "@/lib/types";
+import { coord, type POI } from "@/lib/types";
 
 export default async function PlaceDetailPage({
   params,
@@ -26,20 +31,30 @@ export default async function PlaceDetailPage({
 
   const hex = categoryHex(poi.category);
 
+  // 가까운 거점(정적 116 — 사진 풍부) → 상세 하단 채우기 + 회유 동선.
+  const nearbyPois = nearby(ALL_POIS, coord(poi), 6_000, 7)
+    .filter((p) => p.id !== poi!.id)
+    .slice(0, 6);
+
   return (
     <main className="pb-6">
       {/* 히어로 */}
       <div className="relative h-56 w-full bg-neutral-200">
         <BackButton />
+        <BookmarkButton heritageId={poi.id} heritageName={poi.name} />
         {poi.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={poi.imageUrl} alt={poi.name} className="h-full w-full object-cover" />
         ) : (
           <div
-            className="grid h-full place-items-center text-5xl"
+            className="grid h-full place-items-center text-white/90"
             style={{ background: `linear-gradient(135deg, ${hex}d9, ${hex}8c)` }}
           >
-            {isHeritage(poi.category) ? "🏛️" : "🖼️"}
+            {isHeritage(poi.category) ? (
+              <Landmark className="h-16 w-16" strokeWidth={1.4} aria-hidden />
+            ) : (
+              <ImageIcon className="h-16 w-16" strokeWidth={1.4} aria-hidden />
+            )}
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
@@ -56,8 +71,15 @@ export default async function PlaceDetailPage({
         {/* 소개 */}
         {poi.shortDesc && (
           <section className="card p-4">
-            <h2 className="mb-1 text-sm font-semibold text-ai">✨ 유산 소개</h2>
-            <p className="text-sm leading-relaxed text-neutral-700">{poi.shortDesc}</p>
+            <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold text-ai">
+              <Sparkles className="h-4 w-4" aria-hidden />
+              유산 소개
+            </h2>
+            <ExpandableText
+              text={poi.shortDesc}
+              lines={4}
+              className="text-sm leading-relaxed text-neutral-700"
+            />
           </section>
         )}
 
@@ -72,10 +94,40 @@ export default async function PlaceDetailPage({
         {/* AI 도슨트 채팅으로 이동 */}
         <Link
           href={`/docent?placeId=${encodeURIComponent(poi.id)}&name=${encodeURIComponent(poi.name)}`}
-          className="pressable block w-full rounded-card bg-navy py-3.5 text-center font-semibold text-white"
+          className="pressable flex w-full items-center justify-center gap-2 rounded-card bg-navy py-3.5 text-center font-semibold text-white"
         >
-          🧑‍🏫 AI 도슨트와 대화하기
+          <MessagesSquare className="h-5 w-5" aria-hidden />
+          AI 도슨트와 대화하기
         </Link>
+
+        {/* 가까운 거점 */}
+        {nearbyPois.length > 0 && (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-neutral-800">
+              가까운 거점
+            </h2>
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+              {nearbyPois.map((n) => (
+                <Link
+                  key={n.id}
+                  href={`/place/${n.id}`}
+                  className="pressable w-36 shrink-0"
+                >
+                  <POIThumbnail poi={n} className="h-24 w-full rounded-card" />
+                  <div className="mt-1.5">
+                    <CategoryChip category={n.category} />
+                    <p className="mt-1 line-clamp-1 text-sm font-medium text-neutral-800">
+                      {n.name}
+                    </p>
+                    <p className="line-clamp-1 text-xs text-neutral-400">
+                      {n.district}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

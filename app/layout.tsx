@@ -3,7 +3,7 @@ import "./globals.css";
 import TabBar from "@/components/TabBar";
 
 export const metadata: Metadata = {
-  title: "걷는 시간 — 도보 여행 역사 AI 가이드",
+  title: "Heritalk — 도보 여행 역사 AI 가이드",
   description:
     "박물관·미술관·유적지를 거점으로, 산책·답사·관광 어디서나 한 점의 시간을 살아 있게 만드는 AI 동반자.",
 };

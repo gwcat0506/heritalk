@@ -2,6 +2,7 @@
 // 좌(패스)/우(좋아요) 스와이프 카드 덱 — 토이 POICardDeck.swift 이식.
 // 상위 3장 스택, 최상단 카드만 드래그. 임계 100px 넘기면 결정, 아니면 스냅백.
 import { useEffect, useRef, useState } from "react";
+import { Heart, X, RotateCw, Check } from "lucide-react";
 import type { POI } from "@/lib/types";
 import { CategoryChip, POIThumbnail } from "@/components/ui";
 
@@ -68,14 +69,17 @@ export default function SwipeDeck({
   if (pool.length === 0) {
     return (
       <div className="card grid min-h-[200px] place-items-center gap-2 p-8 text-center">
-        <div className="text-3xl">✓</div>
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-ai-gradient text-ai">
+          <Check className="h-6 w-6" aria-hidden />
+        </div>
         <p className="text-sm text-neutral-600">주변 후보를 다 봤어요</p>
         {onRefill && (
           <button
             onClick={onRefill}
-            className="pressable text-sm font-semibold text-ai"
+            className="pressable inline-flex items-center gap-1 text-sm font-semibold text-ai"
           >
-            다시 채우기 ↻
+            <RotateCw className="h-4 w-4" aria-hidden />
+            다시 채우기
           </button>
         )}
       </div>
@@ -125,7 +129,11 @@ export default function SwipeDeck({
                     className="flex flex-col items-center gap-1 text-white"
                     style={{ opacity: mag, transform: `scale(${0.7 + 0.3 * mag})` }}
                   >
-                    <span className="text-5xl font-bold">{like ? "♥" : "✕"}</span>
+                    {like ? (
+                      <Heart className="h-14 w-14 fill-current" aria-hidden />
+                    ) : (
+                      <X className="h-14 w-14" strokeWidth={3} aria-hidden />
+                    )}
                     <span className="text-xl font-bold">
                       {like ? "LIKE" : "PASS"}
                     </span>
@@ -142,16 +150,16 @@ export default function SwipeDeck({
         <button
           onClick={() => settle(false)}
           aria-label="패스"
-          className="pressable grid h-14 w-14 place-items-center rounded-full bg-white text-2xl text-red-500 shadow-card"
+          className="pressable grid h-14 w-14 place-items-center rounded-full bg-white text-red-500 shadow-card"
         >
-          ✕
+          <X className="h-6 w-6" strokeWidth={2.5} aria-hidden />
         </button>
         <button
           onClick={() => settle(true)}
           aria-label="코스에 담기"
-          className="pressable grid h-14 w-14 place-items-center rounded-full bg-white text-2xl text-green-500 shadow-card"
+          className="pressable grid h-14 w-14 place-items-center rounded-full bg-white text-green-500 shadow-card"
         >
-          ♥
+          <Heart className="h-6 w-6 fill-current" aria-hidden />
         </button>
       </div>
     </div>

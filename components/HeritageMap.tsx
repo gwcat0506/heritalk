@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import KakaoMap, { type KakaoMapHandle } from "@/components/KakaoMap";
+import { Landmark, ImageIcon, Heart, Plus, Check } from "lucide-react";
 import { CategoryChip } from "@/components/ui";
 import { useUserLocation } from "@/lib/useUserLocation";
 import { useCourseDraft } from "@/stores/useCourseDraft";
@@ -299,14 +300,18 @@ export default function HeritageMap() {
                   />
                 ) : (
                   <div
-                    className="mb-2 grid h-32 w-full place-items-center rounded-chip text-3xl text-white/90"
+                    className="mb-2 grid h-32 w-full place-items-center rounded-chip text-white/90"
                     style={{
                       background: `linear-gradient(135deg, ${categoryHex(
                         detail.designation ?? ""
                       )}d9, ${categoryHex(detail.designation ?? "")}8c)`,
                     }}
                   >
-                    {isHeritage(detail.designation ?? "") ? "🏛️" : "🖼️"}
+                    {isHeritage(detail.designation ?? "") ? (
+                      <Landmark className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+                    ) : (
+                      <ImageIcon className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+                    )}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -327,20 +332,29 @@ export default function HeritageMap() {
                   <div className="flex gap-1.5">
                     <button
                       onClick={onToggleBookmark}
-                      className={`pressable rounded-chip px-3 py-1.5 text-xs font-semibold ${
+                      className={`pressable inline-flex items-center gap-1 rounded-chip px-3 py-1.5 text-xs font-semibold ${
                         bookmarked ? "bg-red-50 text-red-500" : "bg-black/5 text-neutral-600"
                       }`}
                     >
-                      {bookmarked ? "♥ 저장됨" : "♡ 즐겨찾기"}
+                      <Heart
+                        className={`h-3.5 w-3.5 ${bookmarked ? "fill-current" : ""}`}
+                        aria-hidden
+                      />
+                      {bookmarked ? "저장됨" : "즐겨찾기"}
                     </button>
                     {detailPoi && (
                       <button
                         onClick={() => draftToggle(detailPoi)}
-                        className={`pressable rounded-chip px-3 py-1.5 text-xs font-semibold ${
+                        className={`pressable inline-flex items-center gap-1 rounded-chip px-3 py-1.5 text-xs font-semibold ${
                           inCourse ? "bg-navy/10 text-navy" : "bg-black/5 text-neutral-600"
                         }`}
                       >
-                        {inCourse ? "✓ 코스에 담김" : "＋ 코스 담기"}
+                        {inCourse ? (
+                          <Check className="h-3.5 w-3.5" aria-hidden />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        {inCourse ? "코스에 담김" : "코스 담기"}
                       </button>
                     )}
                     {detailPoi && (

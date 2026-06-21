@@ -8,7 +8,8 @@ import { useCourseDraft } from "@/stores/useCourseDraft";
 import { walkEstimate } from "@/lib/poi";
 import { listBookmarks, toggleBookmark, type BookmarkRow } from "@/lib/bookmarks";
 import { listSavedTours, deleteSavedTour, type SavedTourRow } from "@/lib/courses";
-import { POIThumbnail } from "@/components/ui";
+import { POIThumbnail, EmptyState } from "@/components/ui";
+import { Heart, Headphones, Bookmark } from "lucide-react";
 import type { POI } from "@/lib/types";
 
 export default function SavedPage() {
@@ -47,6 +48,25 @@ export default function SavedPage() {
     router.push("/docent?tab=tour");
   }
 
+  const allEmpty =
+    bookmarks.length === 0 && tours.length === 0 && courses.length === 0;
+
+  if (allEmpty) {
+    return (
+      <main className="px-4 pt-6">
+        <h1 className="mb-3 text-xl font-bold text-navy">저장</h1>
+        <div className="card">
+          <EmptyState
+            icon={<Bookmark className="h-7 w-7" strokeWidth={1.8} aria-hidden />}
+            title="저장한 항목이 없어요"
+            description="관심 장소를 ♥ 하거나 도보 코스를 만들어 저장하면 여기에 모여요."
+            action={{ label: "코스 만들러 가기", href: "/course" }}
+          />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="px-4 pt-6">
       {/* 관심 장소(즐겨찾기) */}
@@ -56,7 +76,7 @@ export default function SavedPage() {
           <ul className="space-y-1.5">
             {bookmarks.map((b) => (
               <li key={b.heritage_id} className="card flex items-center gap-2 p-3">
-                <span className="text-lg">♥</span>
+                <Heart className="h-5 w-5 shrink-0 fill-heritage text-heritage" aria-hidden />
                 <Link
                   href={`/place/${b.heritage_id}`}
                   className="pressable min-w-0 flex-1 truncate text-sm font-medium text-neutral-800"
@@ -82,7 +102,7 @@ export default function SavedPage() {
           <ul className="space-y-1.5">
             {tours.map((t) => (
               <li key={t.id} className="card flex items-center gap-2 p-3">
-                <span className="text-lg">🎧</span>
+                <Headphones className="h-5 w-5 shrink-0 text-ai" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-neutral-800">
                     {t.title ?? "투어"}
@@ -147,9 +167,10 @@ export default function SavedPage() {
                 <div className="flex items-center justify-between border-t border-neutral-100 px-3 py-2">
                   <button
                     onClick={() => walkTour(c.pois)}
-                    className="pressable rounded-chip bg-ai/10 px-2.5 py-1 text-xs font-semibold text-ai"
+                    className="pressable inline-flex items-center gap-1 rounded-chip bg-ai/10 px-2.5 py-1 text-xs font-semibold text-ai"
                   >
-                    🎧 투어로 걷기
+                    <Headphones className="h-3.5 w-3.5" aria-hidden />
+                    투어로 걷기
                   </button>
                   <button
                     onClick={() => remove(c.id)}

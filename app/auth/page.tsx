@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, signUp, signInWithGoogle, signInWithKakao } from "@/lib/auth";
-import { PrimaryButton } from "@/components/ui";
+import { PrimaryButton, Wordmark } from "@/components/ui";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -48,8 +48,13 @@ export default function AuthPage() {
   return (
     <main className="flex min-h-dvh flex-col justify-center px-6 py-10">
       <header className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-navy">걷는 시간</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <div className="flex justify-center">
+          <Wordmark size="lg" />
+        </div>
+        <p className="mt-2 text-sm text-neutral-600">
+          박물관·유적을 잇는 도보 역사 AI 가이드
+        </p>
+        <p className="mt-1 text-xs text-neutral-400">
           {mode === "login" ? "다시 오신 걸 환영해요" : "함께 걸어볼까요?"}
         </p>
       </header>

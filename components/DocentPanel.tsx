@@ -2,6 +2,16 @@
 // 채팅 도슨트 — 스트리밍 답변 + 대화 저장/이어보기(로그인) + 출처 카드.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  MessagesSquare,
+  Clock,
+  Plus,
+  X,
+  BookOpen,
+  MapPin,
+  MessageCircle,
+  ArrowRight,
+} from "lucide-react";
 import type { POI, DocentMessage, Citation } from "@/lib/types";
 import {
   getUserId,
@@ -210,7 +220,9 @@ export default function DocentPanel({
   return (
     <div className={`card relative flex ${className} flex-col overflow-hidden`}>
       <div className="flex items-center gap-2 border-b border-neutral-100 px-4 py-3">
-        <span className="text-lg">🧑‍🏫</span>
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-ai-gradient text-ai">
+          <MessagesSquare className="h-4 w-4" aria-hidden />
+        </span>
         <span className="font-semibold">AI 도슨트</span>
         {userId && (
           <div className="ml-auto flex items-center gap-1.5">
@@ -219,22 +231,39 @@ export default function DocentPanel({
                 refreshSessions();
                 setHistoryOpen((v) => !v);
               }}
-              className="pressable rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
+              className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
             >
-              🕘 기록
+              <Clock className="h-3.5 w-3.5" aria-hidden />
+              기록
             </button>
             <button
               onClick={startFresh}
-              className="pressable rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
+              className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
             >
-              + 새 대화
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              새 대화
             </button>
           </div>
         )}
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        {messages.map((m, i) => (
+        {messages.length <= 1 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-ai-gradient text-ai">
+              <MessagesSquare className="h-7 w-7" strokeWidth={1.8} aria-hidden />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-neutral-800">
+                {activePlaceName ? `${activePlaceName} 도슨트` : "무엇이든 물어보세요"}
+              </p>
+              <p className="mx-auto max-w-[17rem] text-sm leading-relaxed text-neutral-500">
+                {messages[0]?.content}
+              </p>
+            </div>
+          </div>
+        ) : (
+          messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] rounded-card px-3 py-2 text-sm ${
@@ -254,8 +283,9 @@ export default function DocentPanel({
                       key={c.passageId}
                       className="rounded-chip border border-ai/30 bg-white p-2 text-xs"
                     >
-                      <div className="font-semibold text-ai">
-                        📖 {c.sourceTitle}
+                      <div className="flex items-center gap-1 font-semibold text-ai">
+                        <BookOpen className="h-3 w-3" aria-hidden />
+                        {c.sourceTitle}
                         {c.sourceRef ? ` · ${c.sourceRef}` : ""}
                       </div>
                       <p className="line-clamp-2 text-neutral-500">{c.snippet}</p>
@@ -265,7 +295,8 @@ export default function DocentPanel({
               )}
             </div>
           </div>
-        ))}
+          ))
+        )}
         {streaming && messages[messages.length - 1]?.role === "user" && (
           <div className="text-sm text-neutral-400">도슨트가 답하는 중…</div>
         )}
@@ -276,9 +307,10 @@ export default function DocentPanel({
       {userId === null && messages.length <= 1 && (
         <Link
           href="/auth"
-          className="mx-4 mb-2 block rounded-chip bg-ai/10 px-3 py-2 text-center text-xs font-medium text-ai"
+          className="mx-4 mb-2 flex items-center justify-center gap-1 rounded-chip bg-ai/10 px-3 py-2 text-center text-xs font-medium text-ai"
         >
-          로그인하면 대화가 저장돼요 →
+          로그인하면 대화가 저장돼요
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       )}
 
@@ -321,9 +353,10 @@ export default function DocentPanel({
             <span className="font-semibold">대화 기록</span>
             <button
               onClick={() => setHistoryOpen(false)}
-              className="pressable px-1 text-sm text-neutral-400"
+              className="pressable px-1 text-neutral-400"
+              aria-label="닫기"
             >
-              ✕
+              <X className="h-4 w-4" aria-hidden />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
@@ -337,7 +370,11 @@ export default function DocentPanel({
                     onClick={() => openSession(s)}
                     className="pressable flex w-full items-center gap-2 rounded-card border border-neutral-100 p-3 text-left hover:bg-black/5"
                   >
-                    <span className="text-lg">{s.mode === "place" ? "📍" : "💬"}</span>
+                    {s.mode === "place" ? (
+                      <MapPin className="h-4 w-4 shrink-0 text-navy" aria-hidden />
+                    ) : (
+                      <MessageCircle className="h-4 w-4 shrink-0 text-ai" aria-hidden />
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-neutral-800">
                         {s.title || "(제목 없음)"}
