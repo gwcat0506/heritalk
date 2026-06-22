@@ -1,10 +1,12 @@
 "use client";
 // 거점 상세 액션행 — 코스에 담기 / 길찾기(카카오맵) / 공유. (음성 해설 제거)
 import { useCourseDraft } from "@/stores/useCourseDraft";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import type { POI } from "@/lib/types";
 
 export default function PlaceActions({ poi }: { poi: POI }) {
   const { toggle, contains } = useCourseDraft();
+  const t = useT();
   const added = contains(poi.id);
 
   const kakaoMapUrl = `https://map.kakao.com/link/to/${encodeURIComponent(
@@ -29,7 +31,7 @@ export default function PlaceActions({ poi }: { poi: POI }) {
           added ? "bg-navy text-white" : "bg-accent text-white"
         }`}
       >
-        {added ? "담음 ✓" : "+ 코스"}
+        {added ? `${t("place.added")} ✓` : `+ ${t("place.addCourse")}`}
       </button>
       <a
         href={kakaoMapUrl}
@@ -37,13 +39,13 @@ export default function PlaceActions({ poi }: { poi: POI }) {
         rel="noopener noreferrer"
         className="pressable grid place-items-center rounded-card bg-black/5 py-3 text-sm font-semibold"
       >
-        길찾기
+        {t("place.directions")}
       </a>
       <button
         onClick={share}
         className="pressable rounded-card bg-black/5 py-3 text-sm font-semibold"
       >
-        공유
+        {t("place.share")}
       </button>
     </div>
   );

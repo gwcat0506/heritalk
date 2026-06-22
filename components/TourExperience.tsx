@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { getUser } from "@/lib/auth";
+import { useLocale, useT } from "@/lib/i18n/LocaleProvider";
 import { distanceMeters, nearby } from "@/lib/poi";
 import { buildWalkablePool } from "@/lib/heritage-pool";
 import { useUserLocation } from "@/lib/useUserLocation";
@@ -35,6 +36,8 @@ const ARRIVE_M = 30;
 export default function TourExperience({ source }: { source: TourSource }) {
   const draftPois = useCourseDraft((s) => s.pois);
   const startId = useCourseDraft((s) => s.startId);
+  const { locale } = useLocale();
+  const t = useT();
   const [tour, setTour] = useState<TourData | null>(null);
   const [level, setLevel] = useState("general");
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
@@ -67,12 +70,15 @@ export default function TourExperience({ source }: { source: TourSource }) {
       setStatus("loading");
       const u = await getUser();
       const lv = (u?.user_metadata?.defaultLevel as string) ?? "general";
+      const interests = Array.isArray(u?.user_metadata?.interests)
+        ? (u!.user_metadata!.interests as string[])
+        : undefined;
       setLevel(lv);
       try {
         const res = await fetch("/api/tour", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pois, startId, level: lv }),
+          body: JSON.stringify({ pois, startId, level: lv, language: locale, interests }),
         });
         const data = (await res.json()) as TourData & { error?: string };
         if (cancelled) return;
@@ -92,13 +98,13 @@ export default function TourExperience({ source }: { source: TourSource }) {
   if (status === "error")
     return (
       <Centered>
-        <p className="mb-3">투어를 만들지 못했어요.</p>
+        <p className="mb-3">{t("tour.failed")}</p>
         <button
           onClick={() => setNonce((n) => n + 1)}
           className="pressable inline-flex items-center gap-1 rounded-card bg-navy px-4 py-2 text-sm font-semibold text-white"
         >
           <RefreshCw className="h-4 w-4" aria-hidden />
-          다시 시도
+          {t("common.retry")}
         </button>
       </Centered>
     );
@@ -106,7 +112,7 @@ export default function TourExperience({ source }: { source: TourSource }) {
     return (
       <Centered>
         <div className="mb-3 h-7 w-7 animate-spin rounded-full border-2 border-neutral-200 border-t-navy" />
-        도슨트가 코스를 짜고 이야기를 엮는 중…
+        {t("tour.building")}
       </Centered>
     );
 
@@ -129,6 +135,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 // 코스 없음 — 코스 만들기 / 주변 자동 추천
 function TourEmpty() {
+  const t = useT();
   const draft = useCourseDraft();
   const { locate } = useUserLocation();
   const [busy, setBusy] = useState(false);
@@ -167,11 +174,7 @@ function TourEmpty() {
       <div className="grid h-16 w-16 place-items-center rounded-full bg-ai-gradient text-ai">
         <Footprints className="h-7 w-7" strokeWidth={1.8} aria-hidden />
       </div>
-      <p className="text-sm text-neutral-500">
-        코스에 거점을 2곳 이상 담으면
-        <br />
-        도슨트가 이야기를 엮어 함께 걸어요.
-      </p>
+      <p className="text-sm text-neutral-500">{t("tour.empty.desc")}</p>
       <div className="flex flex-col items-stretch gap-2">
         <button
           onClick={autoCourse}
@@ -179,10 +182,11 @@ function TourEmpty() {
           className="pressable inline-flex items-center justify-center gap-1.5 rounded-card bg-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {busy ? (
-            "주변 거점 찾는 중…"
+            t("tour.empty.finding")
           ) : (
             <>
-              <MapPin className="h-4 w-4" aria-hidden />내 주변 코스 추천
+              <MapPin className="h-4 w-4" aria-hidden />
+              {t("tour.empty.autoRec")}
             </>
           )}
         </button>
@@ -190,7 +194,7 @@ function TourEmpty() {
           href="/course"
           className="pressable inline-flex items-center justify-center gap-1 rounded-card bg-ai/10 px-5 py-2.5 text-sm font-medium text-ai"
         >
-          코스 직접 만들기
+          {t("tour.empty.manual")}
           <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
@@ -215,10 +219,13 @@ function TourPlayer({
   level: string;
   canSave: boolean;
 }) {
+  const { locale } = useLocale();
+  const t = useT();
   const [mode, setMode] = useState<"live" | "preview">("live");
   const [log, setLog] = useState<Chat[]>([]);
   const [input, setInput] = useState("");
   const [asking, setAsking] = useState(false);
+  const [interests, setInterests] = useState<string[] | undefined>(undefined);
   const [pos, setPos] = useState<LatLng>({ lat: tour.path[0].lat, lng: tour.path[0].lng });
   const [geoError, setGeoError] = useState(false);
 
@@ -241,7 +248,11 @@ function TourPlayer({
   const liveFixRef = useRef(false);
 
   useEffect(() => {
-    getUser().then((u) => setUserId(u?.id ?? null));
+    getUser().then((u) => {
+      setUserId(u?.id ?? null);
+      if (Array.isArray(u?.user_metadata?.interests))
+        setInterests(u!.user_metadata!.interests as string[]);
+    });
   }, []);
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -402,7 +413,14 @@ function TourPlayer({
       const res = await fetch("/api/docent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ placeId: nearestStopId(), question: q, history }),
+        body: JSON.stringify({
+          placeId: nearestStopId(),
+          question: q,
+          history,
+          level,
+          language: locale,
+          interests,
+        }),
       });
       if (!res.body) throw new Error("no body");
       const reader = res.body.getReader();
@@ -466,7 +484,7 @@ function TourPlayer({
                 mode === m ? "bg-white text-navy shadow-card" : "text-neutral-500"
               }`}
             >
-              {m === "live" ? "라이브" : "미리보기"}
+              {m === "live" ? t("tour.live") : t("tour.preview")}
             </button>
           ))}
         </div>
@@ -479,14 +497,14 @@ function TourPlayer({
             {saved ? (
               <>
                 <Check className="h-3.5 w-3.5" aria-hidden />
-                저장됨
+                {t("tour.saved")}
               </>
             ) : saving ? (
-              "저장 중…"
+              t("tour.saving")
             ) : (
               <>
                 <Save className="h-3.5 w-3.5" aria-hidden />
-                투어 저장
+                {t("tour.save")}
               </>
             )}
           </button>
@@ -497,9 +515,13 @@ function TourPlayer({
 
       <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
         <span>
-          총 {(total / 1000).toFixed(1)}km · 도보 {tour.totalMinutes}분 · {tour.stops.length}곳
+          {t("tour.meta", {
+            km: (total / 1000).toFixed(1),
+            min: tour.totalMinutes,
+            n: tour.stops.length,
+          })}
         </span>
-        <span className="font-medium text-ai">{pct >= 100 ? "완료" : `${pct}%`}</span>
+        <span className="font-medium text-ai">{pct >= 100 ? t("tour.done") : `${pct}%`}</span>
       </div>
 
       {/* 미리보기 컨트롤: 재생 + 배속 슬라이더 + 진행 스크럽 + 정류지 점프 */}
@@ -558,7 +580,7 @@ function TourPlayer({
 
       {mode === "live" && geoError && (
         <p className="mt-2 rounded-chip bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          위치 권한이 필요해요. 허용하거나 <b>미리보기</b> 모드로 둘러보세요.
+          {t("tour.geoNeeded")}
         </p>
       )}
 
@@ -579,7 +601,7 @@ function TourPlayer({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="이동 중 헤리에게 질문하기…"
+          placeholder={t("tour.inputPlaceholder")}
           className="flex-1 rounded-card border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-navy"
         />
         <button
@@ -587,7 +609,7 @@ function TourPlayer({
           disabled={asking || !input.trim()}
           className="pressable rounded-card bg-navy px-4 text-sm font-semibold text-white disabled:opacity-40"
         >
-          전송
+          {t("common.send")}
         </button>
       </form>
     </div>

@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCourseDraft } from "@/stores/useCourseDraft";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 type IconProps = { className?: string };
 
@@ -66,36 +67,37 @@ const PersonIcon = ({ className }: IconProps) => (
 );
 
 const TABS = [
-  { href: "/", label: "홈", Icon: HomeIcon },
-  { href: "/docent", label: "도슨트", Icon: ChatIcon },
-  { href: "/course", label: "코스", Icon: RouteIcon },
-  { href: "/saved", label: "저장", Icon: BookmarkIcon },
-  { href: "/mypage", label: "마이", Icon: PersonIcon },
+  { href: "/", key: "home", Icon: HomeIcon },
+  { href: "/docent", key: "docent", Icon: ChatIcon },
+  { href: "/course", key: "course", Icon: RouteIcon },
+  { href: "/saved", key: "saved", Icon: BookmarkIcon },
+  { href: "/mypage", key: "my", Icon: PersonIcon },
 ];
 
 export default function TabBar() {
   const pathname = usePathname();
   const count = useCourseDraft((s) => s.pois.length);
+  const t = useT();
 
   // 인증 화면에선 탭바 숨김(전체화면 로그인).
   if (pathname.startsWith("/auth")) return null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md items-stretch justify-around border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      {TABS.map((t) => {
+      {TABS.map((item) => {
         const active =
-          t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
+          item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
         return (
           <Link
-            key={t.href}
-            href={t.href}
+            key={item.href}
+            href={item.href}
             className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
               active ? "text-navy" : "text-neutral-400"
             }`}
           >
-            <t.Icon className="h-6 w-6" />
-            {t.label}
-            {t.href === "/course" && count > 0 && (
+            <item.Icon className="h-6 w-6" />
+            {t(`tab.${item.key}`)}
+            {item.href === "/course" && count > 0 && (
               <span className="absolute right-3 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-white">
                 {count}
               </span>

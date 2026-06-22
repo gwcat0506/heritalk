@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Heart, X, RotateCw, Check } from "lucide-react";
 import type { POI } from "@/lib/types";
 import { CategoryChip, POIThumbnail } from "@/components/ui";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function SwipeDeck({
   pois,
@@ -17,6 +18,7 @@ export default function SwipeDeck({
   onDecide: (poi: POI, like: boolean) => void;
   onRefill?: () => void;
 }) {
+  const t = useT();
   const [pool, setPool] = useState<POI[]>(pois);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [flying, setFlying] = useState(false); // 카드가 날아가는 중
@@ -72,14 +74,14 @@ export default function SwipeDeck({
         <div className="grid h-14 w-14 place-items-center rounded-full bg-ai-gradient text-ai">
           <Check className="h-6 w-6" aria-hidden />
         </div>
-        <p className="text-sm text-neutral-600">주변 후보를 다 봤어요</p>
+        <p className="text-sm text-neutral-600">{t("home.deckDone")}</p>
         {onRefill && (
           <button
             onClick={onRefill}
             className="pressable inline-flex items-center gap-1 text-sm font-semibold text-ai"
           >
             <RotateCw className="h-4 w-4" aria-hidden />
-            다시 채우기
+            {t("home.deckRefill")}
           </button>
         )}
       </div>

@@ -8,11 +8,15 @@ import type { Citation } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { placeId, question, history } = (await req.json()) as {
-    placeId?: string;
-    question: string;
-    history?: { role: string; content: string }[];
-  };
+  const { placeId, question, history, level, language, interests } =
+    (await req.json()) as {
+      placeId?: string;
+      question: string;
+      history?: { role: string; content: string }[];
+      level?: string;
+      language?: string;
+      interests?: string[];
+    };
 
   if (!question?.trim()) {
     return Response.json({ error: "질문이 비었습니다." }, { status: 400 });
@@ -74,6 +78,9 @@ export async function POST(req: Request) {
             context,
             history,
             general,
+            level,
+            language,
+            interests,
           })) {
             any = true;
             controller.enqueue(encoder.encode(t));

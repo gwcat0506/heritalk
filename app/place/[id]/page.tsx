@@ -10,6 +10,7 @@ import BackButton from "@/components/BackButton";
 import BookmarkButton from "@/components/BookmarkButton";
 import ExpandableText from "@/components/ExpandableText";
 import { POIThumbnail, CategoryChip } from "@/components/ui";
+import { getServerT } from "@/lib/i18n/server";
 import PlaceActions from "./PlaceActions";
 import { coord, type POI } from "@/lib/types";
 
@@ -29,6 +30,7 @@ export default async function PlaceDetailPage({
   }
   if (!poi) notFound();
 
+  const t = await getServerT();
   const hex = categoryHex(poi.category);
 
   // 가까운 거점(정적 116 — 사진 풍부) → 상세 하단 채우기 + 회유 동선.
@@ -73,7 +75,7 @@ export default async function PlaceDetailPage({
           <section className="card p-4">
             <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold text-ai">
               <Sparkles className="h-4 w-4" aria-hidden />
-              유산 소개
+              {t("place.about")}
             </h2>
             <ExpandableText
               text={poi.shortDesc}
@@ -85,10 +87,10 @@ export default async function PlaceDetailPage({
 
         {/* 기본 정보 */}
         <section className="card divide-y divide-neutral-100 p-4 text-sm">
-          <Row label="분류" value={poi.category} />
-          {poi.era && <Row label="시대" value={poi.era} />}
-          {poi.district && <Row label="자치구" value={poi.district} />}
-          {poi.address && <Row label="소재지" value={poi.address} />}
+          <Row label={t("place.cat")} value={poi.category} />
+          {poi.era && <Row label={t("place.era")} value={poi.era} />}
+          {poi.district && <Row label={t("place.district")} value={poi.district} />}
+          {poi.address && <Row label={t("place.address")} value={poi.address} />}
         </section>
 
         {/* AI 도슨트 채팅으로 이동 */}
@@ -97,14 +99,14 @@ export default async function PlaceDetailPage({
           className="pressable flex w-full items-center justify-center gap-2 rounded-card bg-navy py-3.5 text-center font-semibold text-white"
         >
           <MessagesSquare className="h-5 w-5" aria-hidden />
-          AI 도슨트와 대화하기
+          {t("place.talkDocent")}
         </Link>
 
         {/* 가까운 거점 */}
         {nearbyPois.length > 0 && (
           <section>
             <h2 className="mb-2 text-sm font-semibold text-neutral-800">
-              가까운 거점
+              {t("place.nearby")}
             </h2>
             <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
               {nearbyPois.map((n) => (

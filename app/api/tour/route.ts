@@ -11,11 +11,14 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { pois, startId, level = "general" } = (await req.json()) as {
-      pois: POI[];
-      startId?: string;
-      level?: string;
-    };
+    const { pois, startId, level = "general", language, interests } =
+      (await req.json()) as {
+        pois: POI[];
+        startId?: string;
+        level?: string;
+        language?: string;
+        interests?: string[];
+      };
     if (!Array.isArray(pois) || pois.length < 2) {
       return NextResponse.json({ error: "거점이 2곳 이상 필요합니다." }, { status: 400 });
     }
@@ -85,7 +88,7 @@ export async function POST(req: Request) {
       description: s.description,
       legMin: s.legMin,
     }));
-    const story = await generateTourStory(storyInput, level);
+    const story = await generateTourStory(storyInput, level, { language, interests });
 
     return NextResponse.json({
       path,

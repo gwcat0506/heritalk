@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MapPin, RefreshCw } from "lucide-react";
 import { getSeoulHeritageList, type KhsHeritage } from "@/lib/khs";
+import { getServerT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic"; // 외부 API는 빌드가 아닌 요청 시 호출
 
@@ -17,6 +18,7 @@ function desigColor(d: string): string {
 }
 
 export default async function HeritageLivePage() {
+  const t = await getServerT();
   let items: KhsHeritage[] = [];
   let error: string | null = null;
   try {
@@ -32,22 +34,22 @@ export default async function HeritageLivePage() {
   return (
     <main className="px-4 pt-6 pb-8">
       <header className="mb-3">
-        <p className="text-sm text-neutral-500">국가유산청 실시간 · 서울</p>
-        <h1 className="text-2xl font-bold text-navy">라이브 국가유산</h1>
+        <p className="text-sm text-neutral-500">{t("live.subtitle")}</p>
+        <h1 className="text-2xl font-bold text-navy">{t("live.title")}</h1>
         <p className="mt-1 text-xs text-neutral-400">
-          khs.go.kr OpenAPI · 총 {items.length.toLocaleString()}건
+          {t("live.count", { n: items.length.toLocaleString() })}
         </p>
       </header>
 
       {error && (
         <div className="card mb-4 flex items-center justify-between gap-3 p-4">
-          <p className="text-sm text-red-500">불러오기에 실패했어요.</p>
+          <p className="text-sm text-red-500">{t("live.failed")}</p>
           <Link
             href="/heritage-live"
             className="pressable inline-flex shrink-0 items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-semibold text-neutral-700"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            다시 시도
+            {t("common.retry")}
           </Link>
         </div>
       )}
@@ -89,7 +91,7 @@ export default async function HeritageLivePage() {
       </div>
 
       <Link href="/" className="pressable mt-6 block text-center text-sm text-neutral-500">
-        ← 홈으로
+        {t("live.home")}
       </Link>
     </main>
   );

@@ -9,6 +9,7 @@ import { walkEstimate } from "@/lib/poi";
 import { listBookmarks, toggleBookmark, type BookmarkRow } from "@/lib/bookmarks";
 import { listSavedTours, deleteSavedTour, type SavedTourRow } from "@/lib/courses";
 import { POIThumbnail, EmptyState } from "@/components/ui";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { Heart, Headphones, Bookmark } from "lucide-react";
 import type { POI } from "@/lib/types";
 
@@ -16,6 +17,7 @@ export default function SavedPage() {
   const { courses, remove } = useSaved();
   const draft = useCourseDraft();
   const router = useRouter();
+  const t = useT();
 
   const [bookmarks, setBookmarks] = useState<BookmarkRow[]>([]);
   const [tours, setTours] = useState<SavedTourRow[]>([]);
@@ -54,13 +56,13 @@ export default function SavedPage() {
   if (allEmpty) {
     return (
       <main className="px-4 pt-6">
-        <h1 className="mb-3 text-xl font-bold text-navy">저장</h1>
+        <h1 className="mb-3 text-xl font-bold text-navy">{t("saved.title")}</h1>
         <div className="card">
           <EmptyState
             icon={<Bookmark className="h-7 w-7" strokeWidth={1.8} aria-hidden />}
-            title="저장한 항목이 없어요"
-            description="관심 장소를 ♥ 하거나 도보 코스를 만들어 저장하면 여기에 모여요."
-            action={{ label: "코스 만들러 가기", href: "/course" }}
+            title={t("saved.empty.title")}
+            description={t("saved.empty.desc")}
+            action={{ label: t("saved.empty.cta"), href: "/course" }}
           />
         </div>
       </main>
@@ -72,7 +74,7 @@ export default function SavedPage() {
       {/* 관심 장소(즐겨찾기) */}
       {bookmarks.length > 0 && (
         <section className="mb-6">
-          <h1 className="mb-3 text-xl font-bold text-navy">관심 장소</h1>
+          <h1 className="mb-3 text-xl font-bold text-navy">{t("saved.bookmarks")}</h1>
           <ul className="space-y-1.5">
             {bookmarks.map((b) => (
               <li key={b.heritage_id} className="card flex items-center gap-2 p-3">
@@ -81,13 +83,13 @@ export default function SavedPage() {
                   href={`/place/${b.heritage_id}`}
                   className="pressable min-w-0 flex-1 truncate text-sm font-medium text-neutral-800"
                 >
-                  {b.heritage_name ?? "이름 없음"}
+                  {b.heritage_name ?? t("saved.noName")}
                 </Link>
                 <button
                   onClick={() => unbookmark(b)}
                   className="pressable shrink-0 text-xs text-neutral-400"
                 >
-                  해제
+                  {t("saved.unbookmark")}
                 </button>
               </li>
             ))}
@@ -98,31 +100,31 @@ export default function SavedPage() {
       {/* 저장한 투어(DB) — 다시 듣기는 Gemini 재호출 없이 즉시 재생 */}
       {tours.length > 0 && (
         <section className="mb-6">
-          <h1 className="mb-3 text-xl font-bold text-navy">저장한 투어</h1>
+          <h1 className="mb-3 text-xl font-bold text-navy">{t("saved.tours")}</h1>
           <ul className="space-y-1.5">
-            {tours.map((t) => (
-              <li key={t.id} className="card flex items-center gap-2 p-3">
+            {tours.map((tour) => (
+              <li key={tour.id} className="card flex items-center gap-2 p-3">
                 <Headphones className="h-5 w-5 shrink-0 text-ai" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-neutral-800">
-                    {t.title ?? "투어"}
+                    {tour.title ?? t("saved.tourFallback")}
                   </p>
                   <p className="text-xs text-neutral-500">
-                    {t.total_distance ? `${(t.total_distance / 1000).toFixed(1)}km` : ""}
-                    {t.total_time ? ` · ${Math.round(t.total_time / 60)}분` : ""}
+                    {tour.total_distance ? `${(tour.total_distance / 1000).toFixed(1)}km` : ""}
+                    {tour.total_time ? ` · ${Math.round(tour.total_time / 60)}분` : ""}
                   </p>
                 </div>
                 <Link
-                  href={`/docent?tab=tour&savedId=${t.id}`}
+                  href={`/docent?tab=tour&savedId=${tour.id}`}
                   className="pressable shrink-0 rounded-chip bg-ai/10 px-2.5 py-1 text-xs font-semibold text-ai"
                 >
-                  다시 듣기
+                  {t("saved.replay")}
                 </Link>
                 <button
-                  onClick={() => removeTour(t.id)}
+                  onClick={() => removeTour(tour.id)}
                   className="pressable shrink-0 text-xs text-neutral-400"
                 >
-                  삭제
+                  {t("course.delete")}
                 </button>
               </li>
             ))}
@@ -130,13 +132,11 @@ export default function SavedPage() {
         </section>
       )}
 
-      <h1 className="mb-3 text-xl font-bold text-navy">저장한 코스</h1>
+      <h1 className="mb-3 text-xl font-bold text-navy">{t("saved.courses")}</h1>
 
       {courses.length === 0 ? (
         <div className="card grid place-items-center p-10 text-center text-sm text-neutral-500">
-          아직 저장한 코스가 없어요.
-          <br />
-          코스를 만들고 저장해보세요.
+          {t("saved.coursesEmpty")}
         </div>
       ) : (
         <ul className="space-y-3">
@@ -160,7 +160,11 @@ export default function SavedPage() {
                   <div className="p-3">
                     <p className="font-semibold">{c.title}</p>
                     <p className="text-xs text-neutral-500">
-                      {c.pois.length}곳 · 약 {est.minutes}분 · {est.km.toFixed(1)}km
+                      {t("saved.courseMeta", {
+                        n: c.pois.length,
+                        min: est.minutes,
+                        km: est.km.toFixed(1),
+                      })}
                     </p>
                   </div>
                 </button>
@@ -170,13 +174,13 @@ export default function SavedPage() {
                     className="pressable inline-flex items-center gap-1 rounded-chip bg-ai/10 px-2.5 py-1 text-xs font-semibold text-ai"
                   >
                     <Headphones className="h-3.5 w-3.5" aria-hidden />
-                    투어로 걷기
+                    {t("saved.walkTour")}
                   </button>
                   <button
                     onClick={() => remove(c.id)}
                     className="pressable text-xs text-red-500"
                   >
-                    삭제
+                    {t("course.delete")}
                   </button>
                 </div>
               </li>

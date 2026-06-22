@@ -6,6 +6,7 @@ import { districts, poisIn, nearby, walkEstimate } from "@/lib/poi";
 import { buildWalkablePool } from "@/lib/heritage-pool";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { POIThumbnail, PrimaryButton, Wordmark, Skeleton } from "@/components/ui";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { Sparkles, RotateCw, ArrowRight, MapPin } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { useUserLocation } from "@/lib/useUserLocation";
@@ -35,6 +36,7 @@ function pickRecommendation(pool: POI[], seed: number): POI[] {
 }
 
 export default function HomePage() {
+  const t = useT();
   const [seed, setSeed] = useState(1);
   const [mapOpen, setMapOpen] = useState(false);
   const [pool, setPool] = useState<POI[]>([]);
@@ -90,11 +92,11 @@ export default function HomePage() {
     <main className="px-4 pt-6">
       <header className="mb-5">
         <Wordmark size="lg" />
-        <p className="mt-2 text-sm text-neutral-500">오늘, 어디를 걸어볼까요?</p>
+        <p className="mt-2 text-sm text-neutral-500">{t("home.greeting")}</p>
         {ready && rec[0] && (
           <span className="chip mt-2 bg-black/5 text-neutral-600">
             <MapPin className="h-3.5 w-3.5 text-navy" aria-hidden />
-            서울 {rec[0].district} 일대 추천
+            {t("home.areaRec", { area: rec[0].district })}
           </span>
         )}
       </header>
@@ -109,7 +111,7 @@ export default function HomePage() {
             aria-label="지도 열기"
           />
           <span className="pointer-events-none absolute bottom-3 right-3 z-20 inline-flex items-center gap-1 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
-            지도 보기 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            {t("home.mapOpen")} <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </span>
         </section>
       ) : (
@@ -121,14 +123,14 @@ export default function HomePage() {
         <div className="mb-3 flex items-center justify-between">
           <span className="chip bg-ai/15 text-ai">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            AI 추천 코스
+            {t("home.aiCourse")}
           </span>
           <button
             onClick={() => setSeed((s) => s + 1)}
             className="pressable inline-flex items-center gap-1 text-sm text-ai"
           >
             <RotateCw className="h-3.5 w-3.5" aria-hidden />
-            다시 추천
+            {t("home.reRecommend")}
           </button>
         </div>
         {ready ? (
@@ -147,10 +149,14 @@ export default function HomePage() {
               {rec.map((p) => p.name).join(" · ")}
               <br />
               <span className="text-neutral-500">
-                약 {est.minutes}분 · {est.km.toFixed(1)}km · {rec.length}곳
+                {t("home.courseMeta", {
+                  min: est.minutes,
+                  km: est.km.toFixed(1),
+                  n: rec.length,
+                })}
               </span>
             </p>
-            <PrimaryButton onClick={walkThisCourse}>이 코스로 걷기</PrimaryButton>
+            <PrimaryButton onClick={walkThisCourse}>{t("home.walkThisCourse")}</PrimaryButton>
           </>
         ) : (
           <div className="space-y-3">
@@ -167,10 +173,8 @@ export default function HomePage() {
 
       {/* 스와이프 덱(좌 패스 / 우 코스에 담기) */}
       <section className="mb-2">
-        <h2 className="font-semibold text-neutral-800">이런 곳 어때요?</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          오른쪽으로 밀면 코스에 담겨요 (코스 탭에서 확인)
-        </p>
+        <h2 className="font-semibold text-neutral-800">{t("home.deckTitle")}</h2>
+        <p className="mb-3 text-xs text-neutral-500">{t("home.deckHint")}</p>
         {ready ? (
           <SwipeDeck
             pois={deckPool}

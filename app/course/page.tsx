@@ -11,20 +11,22 @@ import {
   CategoryChip,
   EmptyState,
 } from "@/components/ui";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function CoursePage() {
   const { pois, startId, remove, swap, setStart, clear } = useCourseDraft();
   const router = useRouter();
+  const t = useT();
   const est = walkEstimate(pois);
   const start = startId ?? pois[0]?.id;
 
   return (
     <main className="px-4 pt-6">
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-navy">코스 만들기</h1>
+        <h1 className="text-xl font-bold text-navy">{t("course.title")}</h1>
         {pois.length > 0 && (
           <button onClick={clear} className="pressable text-sm text-neutral-400">
-            전체 비우기
+            {t("course.clearAll")}
           </button>
         )}
       </div>
@@ -35,15 +37,15 @@ export default function CoursePage() {
           <span className="grid h-11 w-11 place-items-center rounded-chip bg-ai-gradient text-ai">
             <Map className="h-5 w-5" strokeWidth={2} aria-hidden />
           </span>
-          <div className="mt-2 text-sm font-semibold">주변에서 고르기</div>
-          <div className="text-xs text-neutral-500">지도에서 담기</div>
+          <div className="mt-2 text-sm font-semibold">{t("course.fromMap")}</div>
+          <div className="text-xs text-neutral-500">{t("course.fromMapSub")}</div>
         </Link>
         <Link href="/" className="pressable card flex flex-col items-center p-4 text-center">
           <span className="grid h-11 w-11 place-items-center rounded-chip bg-ai-gradient text-ai">
             <Sparkles className="h-5 w-5" strokeWidth={2} aria-hidden />
           </span>
-          <div className="mt-2 text-sm font-semibold">추천에서 고르기</div>
-          <div className="text-xs text-neutral-500">홈 AI 추천</div>
+          <div className="mt-2 text-sm font-semibold">{t("course.fromRec")}</div>
+          <div className="text-xs text-neutral-500">{t("course.fromRecSub")}</div>
         </Link>
       </div>
 
@@ -51,19 +53,20 @@ export default function CoursePage() {
         <div className="card">
           <EmptyState
             icon={<Route className="h-7 w-7" strokeWidth={1.8} aria-hidden />}
-            title="아직 담은 거점이 없어요"
-            description="위에서 지도나 AI 추천으로 거점을 담으면 나만의 도보 코스가 완성돼요."
-            action={{ label: "지도에서 거점 찾기", href: "/map" }}
+            title={t("course.empty.title")}
+            description={t("course.empty.desc")}
+            action={{ label: t("course.empty.cta"), href: "/map" }}
           />
         </div>
       ) : (
         <>
           <div className="mb-3 rounded-card bg-white p-4 text-center shadow-card">
-            예상 <b className="text-navy">{est.minutes}분</b> ·{" "}
-            <b className="text-navy">{est.km.toFixed(1)}km</b> · {pois.length}곳
-            <p className="mt-1 text-xs text-neutral-400">
-              ※ 실제 도보 경로·시간은 "이 코스로 걷기"에서 계산됩니다
-            </p>
+            {t("course.estimate", {
+              min: est.minutes,
+              km: est.km.toFixed(1),
+              n: pois.length,
+            })}
+            <p className="mt-1 text-xs text-neutral-400">{t("course.estimateNote")}</p>
           </div>
 
           <ul className="mb-4 space-y-2">
@@ -77,7 +80,7 @@ export default function CoursePage() {
                   <div className="flex items-center gap-1.5">
                     <p className="line-clamp-1 text-sm font-medium">{p.name}</p>
                     {start === p.id && (
-                      <span className="chip bg-accent/15 text-accent">시작</span>
+                      <span className="chip bg-accent/15 text-accent">{t("course.startBadge")}</span>
                     )}
                   </div>
                   <CategoryChip category={p.category} />
@@ -105,13 +108,13 @@ export default function CoursePage() {
                     onClick={() => setStart(p.id)}
                     className="pressable rounded-chip bg-black/5 px-2 py-1 text-[11px]"
                   >
-                    시작점
+                    {t("course.setStart")}
                   </button>
                   <button
                     onClick={() => remove(p.id)}
                     className="pressable rounded-chip px-2 py-1 text-[11px] text-red-500"
                   >
-                    삭제
+                    {t("course.delete")}
                   </button>
                 </div>
               </li>
@@ -122,7 +125,7 @@ export default function CoursePage() {
             disabled={pois.length < 2}
             onClick={() => router.push("/course/result")}
           >
-            {pois.length < 2 ? "거점 2곳 이상 담아주세요" : "코스 완성하기"}
+            {pois.length < 2 ? t("course.needTwo") : t("course.finish")}
           </PrimaryButton>
         </>
       )}

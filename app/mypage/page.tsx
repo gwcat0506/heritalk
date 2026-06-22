@@ -1,37 +1,58 @@
 "use client";
-// 마이 — 로그인/회원가입 연결 + 개인 설정(user_metadata 저장).
+// 마이 — 프로필 + 환경설정(언어·난이도·관심사·접근성) + 계정(인증·비번변경·로그아웃).
+// 설정 저장: nickname/level/interests = 저장 버튼, language/largeText = 즉시 적용(LocaleProvider).
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getUser, signOut, updateSettings } from "@/lib/auth";
+import {
+  getUser,
+  signOut,
+  updateSettings,
+  changePassword,
+  resendVerification,
+} from "@/lib/auth";
 import { PrimaryButton, EmptyState } from "@/components/ui";
-import { UserCircle, MessagesSquare, ChevronRight } from "lucide-react";
+import { useT, useLocale, usePrefs } from "@/lib/i18n/LocaleProvider";
+import type { Locale } from "@/lib/i18n/dict";
+import {
+  UserCircle,
+  MessagesSquare,
+  ChevronRight,
+  Check,
+  BadgeCheck,
+  MailWarning,
+  KeyRound,
+  LogOut,
+} from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
-const LEVELS = [
-  { id: "child", label: "어린이" },
-  { id: "general", label: "일반" },
-  { id: "expert", label: "심화" },
-];
-const LANGS = [
+const INTERESTS = ["조선", "고려", "불교문화", "건축", "인물", "전쟁사", "근현대", "왕실"];
+const LANGS: { id: Locale; label: string }[] = [
   { id: "ko", label: "한국어" },
   { id: "en", label: "English" },
 ];
-const INTERESTS = ["조선", "고려", "불교문화", "건축", "인물", "전쟁사", "근현대", "왕실"];
 
 export default function MyPage() {
   const router = useRouter();
+  const t = useT();
+  const { locale, setLocale } = useLocale();
+  const { largeText, setLargeText } = usePrefs();
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [nickname, setNickname] = useState("");
-  const [language, setLanguage] = useState("ko");
   const [level, setLevel] = useState("general");
   const [interests, setInterests] = useState<string[]>([]);
-  const [largeText, setLargeText] = useState(false);
-  const [wheelchair, setWheelchair] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // 계정
+  const [newPw, setNewPw] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   useEffect(() => {
     getUser().then((u) => {
@@ -39,18 +60,15 @@ export default function MyPage() {
       if (u) {
         const m = (u.user_metadata ?? {}) as Record<string, unknown>;
         setNickname((m.nickname as string) ?? u.email?.split("@")[0] ?? "");
-        setLanguage((m.language as string) ?? "ko");
         setLevel((m.defaultLevel as string) ?? "general");
         setInterests((m.interests as string[]) ?? []);
-        setLargeText(!!m.largeText);
-        setWheelchair(!!m.wheelchair);
       }
       setLoading(false);
     });
   }, []);
 
   function toggleInterest(tag: string) {
-    setInterests((arr) => (arr.includes(tag) ? arr.filter((t) => t !== tag) : [...arr, tag]));
+    setInterests((arr) => (arr.includes(tag) ? arr.filter((x) => x !== tag) : [...arr, tag]));
     setSaved(false);
   }
 
@@ -58,10 +76,35 @@ export default function MyPage() {
     setBusy(true);
     setSaved(false);
     try {
-      await updateSettings({ nickname, language, defaultLevel: level, interests, largeText, wheelchair });
+      await updateSettings({ nickname, defaultLevel: level, interests });
       setSaved(true);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function changePw() {
+    if (newPw.length < 6 || pwBusy) return;
+    setPwBusy(true);
+    setPwMsg(null);
+    try {
+      await changePassword(newPw);
+      setNewPw("");
+      setPwMsg(t("my.account.pwChanged"));
+    } catch (e) {
+      setPwMsg(e instanceof Error ? e.message : t("auth.error"));
+    } finally {
+      setPwBusy(false);
+    }
+  }
+
+  async function resend() {
+    if (!user?.email) return;
+    try {
+      await resendVerification(user.email);
+      setResendMsg(t("my.account.resent"));
+    } catch {
+      setResendMsg(t("auth.error"));
     }
   }
 
@@ -82,49 +125,64 @@ export default function MyPage() {
   if (!user)
     return (
       <main className="px-4 pt-6">
-        <h1 className="mb-3 text-2xl font-bold text-navy">마이</h1>
+        <h1 className="mb-3 text-2xl font-bold text-navy">{t("my.title")}</h1>
         <div className="card">
           <EmptyState
             icon={<UserCircle className="h-8 w-8" strokeWidth={1.6} aria-hidden />}
-            title="로그인이 필요해요"
-            description="방문 기록·취향 설정과 즐겨찾기를 저장하려면 로그인하세요."
-            action={{ label: "로그인 / 회원가입", href: "/auth" }}
+            title={t("my.needLogin.title")}
+            description={t("my.needLogin.desc")}
+            action={{ label: t("my.needLogin.cta"), href: "/auth" }}
           />
         </div>
       </main>
     );
 
-  return (
-    <main className="px-4 pt-6 pb-4">
-      <h1 className="mb-4 text-2xl font-bold text-navy">마이</h1>
+  const verified = !!user.email_confirmed_at;
+  const providers =
+    (user.app_metadata?.providers as string[] | undefined) ??
+    (user.app_metadata?.provider ? [user.app_metadata.provider as string] : []);
+  const isEmailUser = providers.includes("email");
 
-      {/* 프로필 헤더 */}
-      <div className="card mb-5 flex items-center gap-4 p-4">
+  return (
+    <main className="space-y-5 px-4 pt-6 pb-4">
+      <h1 className="text-2xl font-bold text-navy">{t("my.title")}</h1>
+
+      {/* 프로필 */}
+      <div className="card flex items-center gap-4 p-4">
         <div className="grid h-12 w-12 place-items-center rounded-full bg-ai/15 text-xl font-bold text-ai">
           {(nickname || "?")[0]}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-neutral-900">{nickname || "사용자"}</p>
+          <p className="truncate font-semibold text-neutral-900">{nickname || "—"}</p>
           <p className="truncate text-xs text-neutral-400">{user.email}</p>
         </div>
-        <button onClick={logout} className="pressable text-sm text-neutral-400">
-          로그아웃
-        </button>
+        {verified ? (
+          <span className="chip bg-green-50 text-green-600">
+            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+            {t("my.account.verified")}
+          </span>
+        ) : (
+          <span className="chip bg-amber-50 text-amber-600">
+            <MailWarning className="h-3.5 w-3.5" aria-hidden />
+            {t("my.account.unverified")}
+          </span>
+        )}
       </div>
 
       {/* 바로가기 */}
-      <Link
-        href="/docent"
-        className="card pressable mb-5 flex items-center gap-3 p-4 text-sm"
-      >
+      <Link href="/docent" className="card pressable flex items-center gap-3 p-4 text-sm">
         <MessagesSquare className="h-5 w-5 text-ai" aria-hidden />
-        <span className="flex-1 font-medium text-neutral-800">도슨트 대화 기록</span>
+        <span className="flex-1 font-medium text-neutral-800">
+          {t("my.shortcut.docentHistory")}
+        </span>
         <ChevronRight className="h-4 w-4 text-neutral-300" aria-hidden />
       </Link>
 
-      {/* 설정 */}
+      {/* 환경설정 */}
       <section className="space-y-5">
-        <Field label="닉네임">
+        <SectionTitle>{t("my.section.prefs")}</SectionTitle>
+
+        <Field label={t("my.field.nickname")}>
           <input
             value={nickname}
             onChange={(e) => {
@@ -135,20 +193,21 @@ export default function MyPage() {
           />
         </Field>
 
-        <Field label="언어">
+        <Field label={t("my.field.language")}>
           <Segmented
             options={LANGS}
-            value={language}
-            onChange={(v) => {
-              setLanguage(v);
-              setSaved(false);
-            }}
+            value={locale}
+            onChange={(v) => setLocale(v as Locale)}
           />
         </Field>
 
-        <Field label="도슨트 기본 난이도">
+        <Field label={t("my.field.level")}>
           <Segmented
-            options={LEVELS}
+            options={[
+              { id: "child", label: t("my.level.child") },
+              { id: "general", label: t("my.level.general") },
+              { id: "expert", label: t("my.level.expert") },
+            ]}
             value={level}
             onChange={(v) => {
               setLevel(v);
@@ -157,7 +216,7 @@ export default function MyPage() {
           />
         </Field>
 
-        <Field label="관심사">
+        <Field label={t("my.field.interests")}>
           <div className="flex flex-wrap gap-2">
             {INTERESTS.map((tag) => {
               const on = interests.includes(tag);
@@ -167,34 +226,134 @@ export default function MyPage() {
                   onClick={() => toggleInterest(tag)}
                   className={`chip pressable ${on ? "bg-navy text-white" : "bg-black/5 text-neutral-600"}`}
                 >
-                  {tag}
+                  {t(`interest.${tag}`)}
                 </button>
               );
             })}
           </div>
         </Field>
 
-        <Field label="접근성">
+        <Field label={t("my.field.accessibility")}>
           <div className="space-y-2">
-            <Toggle label="큰 글씨" on={largeText} onChange={(v) => { setLargeText(v); setSaved(false); }} />
-            <Toggle label="휠체어 코스 우선" on={wheelchair} onChange={(v) => { setWheelchair(v); setSaved(false); }} />
+            <Toggle
+              label={t("my.a11y.largeText")}
+              on={largeText}
+              onChange={(v) => setLargeText(v)}
+            />
+            {/* 휠체어 코스 우선 — 거점 접근성 데이터/라우팅 미비로 준비 중 */}
+            <div className="card flex w-full items-center justify-between p-3.5 text-sm opacity-60">
+              <span className="text-neutral-700">{t("my.a11y.wheelchair")}</span>
+              <span className="chip bg-black/5 text-neutral-500">{t("common.comingSoon")}</span>
+            </div>
           </div>
         </Field>
 
-        <div>
-          <PrimaryButton onClick={save} disabled={busy}>
-            {busy ? "저장 중…" : saved ? "저장됨 ✓" : "설정 저장"}
-          </PrimaryButton>
-        </div>
+        <PrimaryButton onClick={save} disabled={busy}>
+          {busy ? (
+            t("my.save.busy")
+          ) : saved ? (
+            <span className="inline-flex items-center gap-1">
+              <Check className="h-4 w-4" aria-hidden />
+              {t("my.save.done")}
+            </span>
+          ) : (
+            t("my.save.idle")
+          )}
+        </PrimaryButton>
+      </section>
+
+      {/* 계정 */}
+      <section className="space-y-3">
+        <SectionTitle>{t("my.section.account")}</SectionTitle>
+
+        {/* 이메일 인증 재전송 */}
+        {isEmailUser && !verified && (
+          <div className="card flex items-center justify-between gap-3 p-4 text-sm">
+            <span className="text-neutral-600">{t("my.account.unverified")}</span>
+            <button
+              onClick={resend}
+              className="pressable shrink-0 rounded-chip bg-black/5 px-3 py-1.5 text-xs font-semibold text-neutral-700"
+            >
+              {resendMsg ?? t("my.account.resend")}
+            </button>
+          </div>
+        )}
+
+        {/* 비밀번호 변경 (이메일 계정만) */}
+        {isEmailUser ? (
+          <div className="card space-y-2 p-4">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-neutral-800">
+              <KeyRound className="h-4 w-4 text-neutral-400" aria-hidden />
+              {t("my.account.changePw")}
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={newPw}
+                onChange={(e) => {
+                  setNewPw(e.target.value);
+                  setPwMsg(null);
+                }}
+                placeholder={t("my.account.newPw")}
+                className="min-w-0 flex-1 rounded-card border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-navy"
+              />
+              <button
+                onClick={changePw}
+                disabled={newPw.length < 6 || pwBusy}
+                className="pressable shrink-0 rounded-card bg-navy px-4 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                {t("common.confirm")}
+              </button>
+            </div>
+            {pwMsg && <p className="text-xs text-ai">{pwMsg}</p>}
+          </div>
+        ) : (
+          <p className="card p-4 text-sm text-neutral-500">{t("my.account.social")}</p>
+        )}
+
+        {/* 로그아웃 */}
+        {confirmLogout ? (
+          <div className="card flex items-center justify-between gap-3 p-4 text-sm">
+            <span className="text-neutral-700">{t("my.account.logoutConfirm")}</span>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={() => setConfirmLogout(false)}
+                className="pressable rounded-chip bg-black/5 px-3 py-1.5 text-xs font-semibold text-neutral-600"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={logout}
+                className="pressable rounded-chip bg-red-500 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                {t("my.account.logout")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmLogout(true)}
+            className="card pressable flex w-full items-center gap-3 p-4 text-sm font-medium text-red-500"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            {t("my.account.logout")}
+          </button>
+        )}
       </section>
     </main>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{children}</p>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</p>
+      <p className="mb-2 text-sm font-medium text-neutral-700">{label}</p>
       {children}
     </div>
   );
@@ -233,9 +392,7 @@ function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange:
       className="card pressable flex w-full items-center justify-between p-3.5 text-sm"
     >
       <span className="text-neutral-700">{label}</span>
-      <span
-        className={`relative h-6 w-10 rounded-full transition-colors ${on ? "bg-navy" : "bg-neutral-300"}`}
-      >
+      <span className={`relative h-6 w-10 rounded-full transition-colors ${on ? "bg-navy" : "bg-neutral-300"}`}>
         <span
           className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
             on ? "translate-x-[18px]" : "translate-x-0.5"

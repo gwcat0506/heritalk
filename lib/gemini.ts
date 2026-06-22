@@ -27,23 +27,51 @@ export interface AnswerOpts {
   context: string; // 거점 공식 설명문 (일반 모드에선 비어도 됨)
   history?: { role: string; content: string }[];
   general?: boolean;
+  level?: string; // child | general | expert — 난이도(깊이)
+  language?: string; // ko | en — 답변 언어
+  interests?: string[]; // 사용자 관심사 → 관련 맥락 강조
+}
+
+/** 난이도(child/general/expert) → 해설 깊이·말투 지시. 채팅·투어 공용. */
+export function depthFor(level?: string, language?: string): string {
+  const en = language === "en";
+  if (level === "child")
+    return en
+      ? "in simple words and friendly analogies a child can follow, yet substantive"
+      : "초등학생도 이해할 만큼 쉬운 말과 비유로 풀되, 내용은 충실하게";
+  if (level === "expert")
+    return en
+      ? "at the depth a history enthusiast expects — era, figures, institutions, and art/architectural significance"
+      : "역사 애호가가 만족할 깊이로, 시대 배경·인물·제도·건축/미술사적 의의까지";
+  return en
+    ? "engaging for a general adult, with ample background and behind-the-scenes context"
+    : "일반 성인이 흥미롭게 따라올 수 있게, 배경 맥락과 뒷이야기를 충분히";
 }
 
 // 모드별 시스템 지침 + 프롬프트 구성을 generateAnswer/streamAnswer가 공유.
-function buildModel(general?: boolean) {
-  const systemInstruction = general
-    ? [
-        "너는 한국 역사·유산을 안내하는 친근한 AI 도슨트다.",
-        "방문자의 질문에 정확하고 간결한 한국어로 답한다.",
-        "확실치 않거나 모르는 내용은 단정하지 말고 솔직히 밝힌다.",
-        "답변은 3~5문장으로.",
-      ].join(" ")
-    : [
-        "너는 한국 역사 거점을 안내하는 AI 도슨트다.",
-        "아래 '자료'(국가유산청 공식 설명)에 근거해 친근하고 간결한 한국어로 답한다.",
-        "자료에 없는 세부는 일반적 배경지식으로 보충하되, 단정 짓지 말고 솔직히 밝힌다.",
-        "답변은 3~5문장으로.",
-      ].join(" ");
+function buildModel(opts: AnswerOpts) {
+  const en = opts.language === "en";
+  const base = opts.general
+    ? en
+      ? "You are a friendly AI docent for Korean history and heritage."
+      : "너는 한국 역사·유산을 안내하는 친근한 AI 도슨트다."
+    : en
+    ? "You are an AI docent for Korean heritage sites; ground your answer in the provided '자료' (official Korea Heritage Service description)."
+    : "너는 한국 역사 거점을 안내하는 AI 도슨트다. 아래 '자료'(국가유산청 공식 설명)에 근거해 답한다.";
+  const langLine = en ? "Answer in natural English." : "정확하고 간결한 한국어로 답한다.";
+  const honesty = en
+    ? "If you are unsure, say so honestly instead of guessing."
+    : "확실치 않거나 모르는 내용은 단정하지 말고 솔직히 밝힌다.";
+  const depthLine = (en ? "Tone & depth: " : "말투·난이도: ") + depthFor(opts.level, opts.language) + ".";
+  const interestsLine = opts.interests?.length
+    ? en
+      ? `The visitor is especially interested in: ${opts.interests.join(", ")} — emphasize related context when relevant.`
+      : `방문자 관심사: ${opts.interests.join(", ")} — 관련 맥락을 가능하면 우선 강조한다.`
+    : "";
+  const lengthLine = en ? "Keep it to 3-5 sentences." : "답변은 3~5문장으로.";
+  const systemInstruction = [base, langLine, honesty, depthLine, interestsLine, lengthLine]
+    .filter(Boolean)
+    .join(" ");
 
   return genAI!.getGenerativeModel({
     model: CHAT_MODEL,
@@ -78,14 +106,14 @@ ${opts.question}`;
  */
 export async function generateAnswer(opts: AnswerOpts): Promise<string | null> {
   if (!genAI) return null;
-  const res = await buildModel(opts.general).generateContent(buildPrompt(opts));
+  const res = await buildModel(opts).generateContent(buildPrompt(opts));
   return res.response.text();
 }
 
 /** 답변 스트리밍 — 토큰 청크를 순차 yield. 키 없으면 아무것도 yield하지 않음(호출측 폴백). */
 export async function* streamAnswer(opts: AnswerOpts): AsyncGenerator<string> {
   if (!genAI) return;
-  const res = await buildModel(opts.general).generateContentStream(buildPrompt(opts));
+  const res = await buildModel(opts).generateContentStream(buildPrompt(opts));
   for await (const chunk of res.stream) {
     const t = chunk.text();
     if (t) yield t;
@@ -112,17 +140,22 @@ export interface TourStory {
  */
 export async function generateTourStory(
   stops: TourStopInput[],
-  level: string = "general"
+  level: string = "general",
+  opts: { language?: string; interests?: string[] } = {}
 ): Promise<TourStory> {
   const empty: TourStory = { intro: "", stops: [], outro: "" };
   if (!genAI || stops.length === 0) return empty;
 
-  const depth =
-    level === "child"
-      ? "초등학생도 이해할 만큼 쉬운 말과 비유로 풀되, 내용은 풍부하게"
-      : level === "expert"
-      ? "역사 애호가가 만족할 깊이로, 시대 배경·인물·제도·건축/미술사적 의의까지"
-      : "일반 성인이 흥미롭게 따라올 수 있게, 배경 맥락과 뒷이야기를 충분히";
+  const en = opts.language === "en";
+  const depth = depthFor(level, opts.language);
+  const langLine = en
+    ? "Write all narration (intro, every segment, outro) in natural English."
+    : "모든 해설(intro·segments·outro)은 한국어로 작성한다.";
+  const interestsLine = opts.interests?.length
+    ? en
+      ? `The visitor is especially interested in: ${opts.interests.join(", ")} — weave related angles in when the sources allow.`
+      : `방문자 관심사: ${opts.interests.join(", ")} — 자료가 허락하는 선에서 관련 관점을 엮는다.`
+    : "";
 
   const stopInfo = stops
     .map(
@@ -146,7 +179,7 @@ ${stopInfo}
 3) 각 토막은 그 자체로 읽기 쉬워야 한다. 한 토막에 여러 주제를 욱여넣지 말 것. 마지막 토막에서는 다음 장소 이름을 언급해 다리를 놓는다(마지막 장소 제외).
 4) 방문 순서가 시대순이 아니면 "시간을 거슬러 가보면" 식으로 자연스럽게 연결한다.
 5) outro는 전체를 하나의 흐름으로 되짚는 마무리.
-말투는 친근하고 생생하게(${depth}). 자료에 없는 사실을 지어내지 말고, 자료가 빈약하면 일반적으로 널리 알려진 역사 상식 수준에서 신중히 보완한다.
+말투는 친근하고 생생하게(${depth}). ${langLine} ${interestsLine} 자료에 없는 사실을 지어내지 말고, 자료가 빈약하면 일반적으로 널리 알려진 역사 상식 수준에서 신중히 보완한다.
 
 다음 JSON 형식으로만 응답(다른 텍스트 없이):
 {

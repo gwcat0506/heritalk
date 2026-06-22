@@ -72,3 +72,21 @@ export async function updateSettings(settings: Record<string, unknown>) {
   const { error } = await supabase.auth.updateUser({ data: settings });
   if (error) throw error;
 }
+
+/** 비밀번호 변경(이메일 계정). */
+export async function changePassword(newPassword: string) {
+  const supabase = client();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+/** 인증메일 재전송(미인증 이메일 계정). */
+export async function resendVerification(email: string) {
+  const supabase = client();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: callbackUrl() },
+  });
+  if (error) throw error;
+}

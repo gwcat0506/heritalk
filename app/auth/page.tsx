@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, signUp, signInWithGoogle, signInWithKakao } from "@/lib/auth";
 import { PrimaryButton, Wordmark } from "@/components/ui";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function AuthPage() {
   const router = useRouter();
+  const t = useT();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,10 +29,10 @@ export default function AuthPage() {
       } else {
         const data = await signUp(email, password, nickname || email.split("@")[0]);
         if (data.session) router.push("/mypage");
-        else setNotice("확인 메일을 보냈어요. 메일의 링크로 인증한 뒤 로그인해주세요.");
+        else setNotice(t("auth.confirmSent"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "처리 중 오류가 발생했어요.");
+      setError(err instanceof Error ? err.message : t("auth.error"));
     } finally {
       setBusy(false);
     }
@@ -41,7 +43,7 @@ export default function AuthPage() {
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "소셜 로그인 오류");
+      setError(err instanceof Error ? err.message : t("auth.socialError"));
     }
   }
 
@@ -51,11 +53,9 @@ export default function AuthPage() {
         <div className="flex justify-center">
           <Wordmark size="lg" />
         </div>
-        <p className="mt-2 text-sm text-neutral-600">
-          박물관·유적을 잇는 도보 역사 AI 가이드
-        </p>
+        <p className="mt-2 text-sm text-neutral-600">{t("auth.tagline")}</p>
         <p className="mt-1 text-xs text-neutral-400">
-          {mode === "login" ? "다시 오신 걸 환영해요" : "함께 걸어볼까요?"}
+          {mode === "login" ? t("auth.welcomeBack") : t("auth.welcomeNew")}
         </p>
       </header>
 
@@ -65,20 +65,20 @@ export default function AuthPage() {
           onClick={() => social(signInWithGoogle)}
           className="pressable flex w-full items-center justify-center gap-2 rounded-card border border-neutral-200 bg-white py-3 text-sm font-medium text-neutral-700"
         >
-          <GoogleIcon /> 구글로 계속하기
+          <GoogleIcon /> {t("auth.google")}
         </button>
         <button
           onClick={() => social(signInWithKakao)}
           className="pressable flex w-full items-center justify-center gap-2 rounded-card py-3 text-sm font-medium text-[#191600]"
           style={{ backgroundColor: "#FEE500" }}
         >
-          <KakaoIcon /> 카카오로 계속하기
+          <KakaoIcon /> {t("auth.kakao")}
         </button>
       </div>
 
       <div className="my-5 flex items-center gap-3 text-xs text-neutral-400">
         <div className="h-px flex-1 bg-neutral-200" />
-        또는 이메일
+        {t("auth.orEmail")}
         <div className="h-px flex-1 bg-neutral-200" />
       </div>
 
@@ -88,7 +88,7 @@ export default function AuthPage() {
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="닉네임"
+            placeholder={t("auth.nickname")}
             className="w-full rounded-card border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-navy"
           />
         )}
@@ -97,7 +97,7 @@ export default function AuthPage() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="이메일"
+          placeholder={t("auth.email")}
           className="w-full rounded-card border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-navy"
         />
         <input
@@ -105,13 +105,13 @@ export default function AuthPage() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="비밀번호 (6자 이상)"
+          placeholder={t("auth.password")}
           className="w-full rounded-card border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-navy"
         />
         {error && <p className="text-xs text-red-500">{error}</p>}
         {notice && <p className="text-xs text-ai">{notice}</p>}
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? "처리 중…" : mode === "login" ? "로그인" : "회원가입"}
+          {busy ? t("auth.processing") : mode === "login" ? t("common.login") : t("auth.signup")}
         </PrimaryButton>
       </form>
 
@@ -123,7 +123,7 @@ export default function AuthPage() {
         }}
         className="pressable mt-5 text-center text-sm text-neutral-500"
       >
-        {mode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인"}
+        {mode === "login" ? t("auth.toSignup") : t("auth.toLogin")}
       </button>
     </main>
   );

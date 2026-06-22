@@ -22,13 +22,15 @@ import {
   getSession,
   type SessionRow,
 } from "@/lib/conversations";
+import { getUser } from "@/lib/auth";
+import { useLocale, useT } from "@/lib/i18n/LocaleProvider";
 
-function greeting(name?: string): DocentMessage {
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function greeting(t: TFn, name?: string): DocentMessage {
   return {
     role: "assistant",
-    content: name
-      ? `${name}에 대해 궁금한 점을 물어보세요. "여기 왜 중요해요?", "언제 만들어졌어요?" 같은 질문에 국가유산청 설명을 바탕으로 답해드려요.`
-      : `안녕하세요! 한국 역사·유산에 대해 무엇이든 물어보세요. 궁금한 인물·시대·장소를 편하게 물어보시면 도슨트가 답해드려요.`,
+    content: name ? t("docent.greetingPlace", { name }) : t("docent.greetingGeneral"),
   };
 }
 
@@ -51,8 +53,11 @@ export default function DocentPanel({
   sessionParam?: string;
   className?: string;
 }) {
+  const { locale } = useLocale();
+  const t = useT();
+  const [prefs, setPrefs] = useState<{ level?: string; interests?: string[] }>({});
   const [userId, setUserId] = useState<string | null | undefined>(undefined); // undefined=로딩
-  const [messages, setMessages] = useState<DocentMessage[]>([greeting(poi?.name)]);
+  const [messages, setMessages] = useState<DocentMessage[]>([greeting(t, poi?.name)]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
 
@@ -66,9 +71,16 @@ export default function DocentPanel({
 
   const endRef = useRef<HTMLDivElement>(null);
 
-  // 로그인 사용자 확인
+  // 로그인 사용자 확인 + 개인 설정(난이도·관심사) 로드
   useEffect(() => {
     getUserId().then(setUserId);
+    getUser().then((u) => {
+      const m = (u?.user_metadata ?? {}) as Record<string, unknown>;
+      setPrefs({
+        level: typeof m.defaultLevel === "string" ? m.defaultLevel : undefined,
+        interests: Array.isArray(m.interests) ? (m.interests as string[]) : undefined,
+      });
+    });
   }, []);
 
   // 진입: 이어보기(sessionParam) 또는 새 대화(poi 기준)
@@ -93,7 +105,7 @@ export default function DocentPanel({
       setSessionId(null);
       setActivePlaceId(poi?.id);
       setActivePlaceName(poi?.name);
-      setMessages([greeting(poi?.name)]);
+      setMessages([greeting(t, poi?.name)]);
     }
     init();
     return () => {
@@ -114,7 +126,7 @@ export default function DocentPanel({
     setSessionId(null);
     setActivePlaceId(poi?.id);
     setActivePlaceName(poi?.name);
-    setMessages([greeting(poi?.name)]);
+    setMessages([greeting(t, poi?.name)]);
     setHistoryOpen(false);
   }
 
@@ -124,7 +136,7 @@ export default function DocentPanel({
     setSessionId(row.id);
     setActivePlaceId(row.place_id ?? undefined);
     setActivePlaceName(row.title ?? undefined);
-    setMessages(msgs.length ? msgs : [greeting(row.title ?? undefined)]);
+    setMessages(msgs.length ? msgs : [greeting(t, row.title ?? undefined)]);
   }
 
   async function ask(question: string) {
@@ -157,7 +169,14 @@ export default function DocentPanel({
       const res = await fetch("/api/docent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ placeId: activePlaceId, question, history: historyForApi }),
+        body: JSON.stringify({
+          placeId: activePlaceId,
+          question,
+          history: historyForApi,
+          level: prefs.level,
+          language: locale,
+          interests: prefs.interests,
+        }),
       });
       if (!res.body) throw new Error("no body");
 
@@ -214,8 +233,8 @@ export default function DocentPanel({
   }
 
   const suggestions = activePlaceId
-    ? ["여기 왜 중요해요?", "언제 만들어졌어요?", "누구와 관련 있어요?"]
-    : ["경복궁은 왜 중요해?", "조선시대 궁궐 알려줘", "한글은 누가 만들었어?"];
+    ? [t("docent.sug.place1"), t("docent.sug.place2"), t("docent.sug.place3")]
+    : [t("docent.sug.general1"), t("docent.sug.general2"), t("docent.sug.general3")];
 
   return (
     <div className={`card relative flex ${className} flex-col overflow-hidden`}>
@@ -223,7 +242,7 @@ export default function DocentPanel({
         <span className="grid h-7 w-7 place-items-center rounded-full bg-ai-gradient text-ai">
           <MessagesSquare className="h-4 w-4" aria-hidden />
         </span>
-        <span className="font-semibold">AI 도슨트</span>
+        <span className="font-semibold">{t("docent.title")}</span>
         {userId && (
           <div className="ml-auto flex items-center gap-1.5">
             <button
@@ -234,14 +253,14 @@ export default function DocentPanel({
               className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
             >
               <Clock className="h-3.5 w-3.5" aria-hidden />
-              기록
+              {t("docent.history")}
             </button>
             <button
               onClick={startFresh}
               className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden />
-              새 대화
+              {t("docent.newChat")}
             </button>
           </div>
         )}
@@ -255,7 +274,9 @@ export default function DocentPanel({
             </div>
             <div className="space-y-1">
               <p className="font-semibold text-neutral-800">
-                {activePlaceName ? `${activePlaceName} 도슨트` : "무엇이든 물어보세요"}
+                {activePlaceName
+                  ? t("docent.emptyTitlePlace", { name: activePlaceName })
+                  : t("docent.emptyTitle")}
               </p>
               <p className="mx-auto max-w-[17rem] text-sm leading-relaxed text-neutral-500">
                 {messages[0]?.content}
@@ -298,7 +319,7 @@ export default function DocentPanel({
           ))
         )}
         {streaming && messages[messages.length - 1]?.role === "user" && (
-          <div className="text-sm text-neutral-400">도슨트가 답하는 중…</div>
+          <div className="text-sm text-neutral-400">{t("docent.answering")}</div>
         )}
         <div ref={endRef} />
       </div>
@@ -309,7 +330,7 @@ export default function DocentPanel({
           href="/auth"
           className="mx-4 mb-2 flex items-center justify-center gap-1 rounded-chip bg-ai/10 px-3 py-2 text-center text-xs font-medium text-ai"
         >
-          로그인하면 대화가 저장돼요
+          {t("docent.loginSave")}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       )}
@@ -334,7 +355,7 @@ export default function DocentPanel({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="궁금한 점을 물어보세요"
+          placeholder={t("docent.inputPlaceholder")}
           className="flex-1 rounded-card border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-navy"
         />
         <button
@@ -342,7 +363,7 @@ export default function DocentPanel({
           disabled={streaming}
           className="pressable rounded-card bg-navy px-4 text-sm font-semibold text-white disabled:opacity-40"
         >
-          전송
+          {t("common.send")}
         </button>
       </form>
 
@@ -350,7 +371,7 @@ export default function DocentPanel({
       {historyOpen && (
         <div className="absolute inset-0 z-20 flex flex-col bg-white">
           <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-            <span className="font-semibold">대화 기록</span>
+            <span className="font-semibold">{t("docent.historyTitle")}</span>
             <button
               onClick={() => setHistoryOpen(false)}
               className="pressable px-1 text-neutral-400"
@@ -361,7 +382,7 @@ export default function DocentPanel({
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {sessions.length === 0 ? (
-              <p className="py-10 text-center text-sm text-neutral-400">저장된 대화가 없어요.</p>
+              <p className="py-10 text-center text-sm text-neutral-400">{t("docent.noHistory")}</p>
             ) : (
               <div className="space-y-1.5">
                 {sessions.map((s) => (
@@ -377,7 +398,7 @@ export default function DocentPanel({
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-neutral-800">
-                        {s.title || "(제목 없음)"}
+                        {s.title || t("docent.untitled")}
                       </span>
                       <span className="block text-xs text-neutral-400">{timeAgo(s.updated_at)}</span>
                     </span>

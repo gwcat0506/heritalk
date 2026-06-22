@@ -6,6 +6,11 @@
   color-scheme: light;
 }
 
+/* 접근성 — 큰 글씨: 루트 폰트 스케일(rem 기반 전역 확대). */
+html.a11y-large {
+  font-size: 18px; /* 기본 16px → 약 1.125x */
+}
+
 html,
 body {
   padding: 0;

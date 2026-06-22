@@ -4,11 +4,13 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DocentPanel from "@/components/DocentPanel";
 import TourExperience, { type TourSource } from "@/components/TourExperience";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import type { POI } from "@/lib/types";
 
 function DocentInner() {
   const params = useSearchParams();
   const router = useRouter();
+  const t = useT();
   const placeId = params.get("placeId");
   const name = params.get("name") ?? "";
   const session = params.get("session") ?? undefined;
@@ -39,17 +41,17 @@ function DocentInner() {
   return (
     <main className="flex h-full flex-col px-4 pt-6">
       <header className="mb-3 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy">AI 도슨트</h1>
+        <h1 className="text-2xl font-bold text-navy">{t("docent.title")}</h1>
         <div className="flex gap-1 rounded-chip bg-black/5 p-0.5 text-sm font-semibold">
-          {(["chat", "tour"] as const).map((t) => (
+          {(["chat", "tour"] as const).map((k) => (
             <button
-              key={t}
-              onClick={() => go(t)}
+              key={k}
+              onClick={() => go(k)}
               className={`pressable rounded-chip px-3 py-1 ${
-                tab === t ? "bg-white text-navy shadow-card" : "text-neutral-500"
+                tab === k ? "bg-white text-navy shadow-card" : "text-neutral-500"
               }`}
             >
-              {t === "chat" ? "대화" : "투어"}
+              {k === "chat" ? t("docent.chatTab") : t("docent.tourTab")}
             </button>
           ))}
         </div>

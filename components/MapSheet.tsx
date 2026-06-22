@@ -1,7 +1,9 @@
 "use client";
 // 지도 전체화면 모달 — 화면을 덮되 하단 탭바는 보이게(탭바 높이만큼 bottom 비움). 우상단 X로 닫기.
 import { useEffect } from "react";
+import { X } from "lucide-react";
 import HeritageMap from "@/components/HeritageMap";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 const TABBAR = "calc(3.5rem + env(safe-area-inset-bottom))"; // 하단 탭바 높이
 
@@ -12,6 +14,7 @@ export default function MapSheet({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   // 열렸을 때 배경 스크롤 잠금
   useEffect(() => {
     if (!open) return;
@@ -32,9 +35,9 @@ export default function MapSheet({
     >
       {/* 헤더 + 닫기 */}
       <div className="flex shrink-0 items-center justify-between border-b border-neutral-100 px-4 py-3">
-        <h2 className="font-bold text-navy">국가유산 지도</h2>
-        <button onClick={onClose} className="pressable text-lg text-neutral-400" aria-label="닫기">
-          ✕
+        <h2 className="font-bold text-navy">{t("map.title")}</h2>
+        <button onClick={onClose} className="pressable text-neutral-400" aria-label="close">
+          <X className="h-5 w-5" aria-hidden />
         </button>
       </div>
 
