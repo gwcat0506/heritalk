@@ -253,13 +253,10 @@ function TourPlayer({
   useEffect(() => {
     if (!introRef.current) {
       introRef.current = true;
-      push({ kind: "docent", title: "투어 시작", text: tour.intro || "함께 떠나볼까요?" });
+      push({ kind: "docent", title: t("tour.introTitle"), text: tour.intro || t("tour.introFallback") });
       push({
         kind: "walking",
-        text:
-          mode === "live"
-            ? "실제로 이동하면 가까운 유산부터 헤리가 먼저 이야기를 들려줘요."
-            : "▶ 누르면 헤리가 코스를 따라 안내를 시작해요.",
+        text: mode === "live" ? t("tour.liveHint") : t("tour.previewHint"),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,23 +265,27 @@ function TourPlayer({
   const maybeOutro = useCallback(() => {
     if (!outroRef.current && arrivedRef.current.every(Boolean)) {
       outroRef.current = true;
-      push({ kind: "docent", title: "투어 마무리", text: tour.outro || "오늘 투어는 여기까지예요. 수고하셨어요!" });
-      push({ kind: "system", text: "🎉 투어 완료! 직접 방문하면 더 생생해요." });
+      push({ kind: "docent", title: t("tour.outroTitle"), text: tour.outro || t("tour.outroFallback") });
+      push({ kind: "system", text: t("tour.completeMsg") });
     }
-  }, [push, tour.outro]);
+  }, [push, tour.outro, t]);
 
   // 근접 해설 공개 — 명령형(RAF·watchPosition에서 직접 호출). effect 타이밍/스테일 클로저 회피.
   const revealAt = useCallback(
     (p: LatLng) => {
       tour.stops.forEach((s, i) => {
         const d = distanceMeters(p, { lat: s.lat, lng: s.lng });
-        const segs = s.segments.length ? s.segments : [`${s.name} 근처입니다.`];
+        const segs = s.segments.length ? s.segments : [t("tour.near", { name: s.name })];
         if (d < APPROACH_M) {
           const frac = Math.min(1, Math.max(0, (APPROACH_M - d) / (APPROACH_M - ARRIVE_M)));
           const target = Math.min(segs.length, Math.max(1, Math.ceil(frac * segs.length)));
           while (revealedRef.current[i] < target) {
             const j = revealedRef.current[i];
-            push({ kind: "docent", text: segs[j], title: j === 0 ? `🔭 곧 ${s.order}. ${s.name}` : undefined });
+            push({
+              kind: "docent",
+              text: segs[j],
+              title: j === 0 ? t("tour.approaching", { n: s.order, name: s.name }) : undefined,
+            });
             revealedRef.current[i] = j + 1;
           }
         }
@@ -293,13 +294,15 @@ function TourPlayer({
           const next = tour.stops[i + 1];
           push({
             kind: "walking",
-            text: next ? `📍 「${s.name}」 도착 · 다음은 「${next.name}」, 약 ${next.legMin}분` : `📍 「${s.name}」 도착`,
+            text: next
+              ? t("tour.arrivedNext", { name: s.name, next: next.name, min: next.legMin })
+              : t("tour.arrived", { name: s.name }),
           });
         }
       });
       maybeOutro();
     },
-    [tour.stops, push, maybeOutro]
+    [tour.stops, push, maybeOutro, t]
   );
   // RAF/watch 콜백에서 항상 최신 revealAt을 쓰도록 ref 경유
   const revealRef = useRef(revealAt);
@@ -436,9 +439,9 @@ function TourPlayer({
           setLog((l) => updateLast(l, cur));
         }
       }
-      if (!answer) setLog((l) => updateLast(l, "답을 찾지 못했어요."));
+      if (!answer) setLog((l) => updateLast(l, t("tour.askEmpty")));
     } catch {
-      setLog((l) => updateLast(l, "오류가 났어요. 다시 물어봐 주세요."));
+      setLog((l) => updateLast(l, t("tour.askError")));
     } finally {
       setAsking(false);
     }
@@ -505,16 +508,47 @@ function TourPlayer({
 
       <TourMap path={tour.path} stops={tour.stops} pos={pos} />
 
-      <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
-        <span>
-          {t("tour.meta", {
-            km: (total / 1000).toFixed(1),
-            min: tour.totalMinutes,
-            n: tour.stops.length,
-          })}
-        </span>
-        <span className="font-medium text-ai">{pct >= 100 ? t("tour.done") : `${pct}%`}</span>
-      </div>
+      {/* 현재→다음 거점 상태바 (위치 기반) */}
+      {(() => {
+        const nextStop = tour.stops.find((_, i) => !arrivedRef.current[i]);
+        const dist = nextStop
+          ? distanceMeters(pos, { lat: nextStop.lat, lng: nextStop.lng })
+          : 0;
+        const distLabel = dist >= 1000 ? `${(dist / 1000).toFixed(1)}km` : `${Math.round(dist)}m`;
+        return (
+          <div className="mt-2 rounded-card bg-white p-3 shadow-card">
+            <div className="flex items-center justify-between gap-3">
+              {nextStop ? (
+                <div className="min-w-0">
+                  <p className="text-[11px] text-neutral-400">{t("tour.next")}</p>
+                  <p className="truncate text-sm font-semibold text-neutral-800">
+                    {nextStop.order}. {nextStop.name}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm font-semibold text-ai">{t("tour.done")}</p>
+              )}
+              <div className="shrink-0 text-right">
+                {nextStop && (
+                  <p className="text-sm font-bold text-navy">{t("tour.away", { d: distLabel })}</p>
+                )}
+                <p className="text-[11px] text-ai">{pct}%</p>
+              </div>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/5">
+              <div className="h-full rounded-full bg-ai transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })()}
+
+      <p className="mt-1.5 text-center text-[11px] text-neutral-400">
+        {t("tour.meta", {
+          km: (total / 1000).toFixed(1),
+          min: tour.totalMinutes,
+          n: tour.stops.length,
+        })}
+      </p>
 
       {/* 미리보기 컨트롤: 재생 + 배속 슬라이더 + 진행 스크럽 + 정류지 점프 */}
       {mode === "preview" && (

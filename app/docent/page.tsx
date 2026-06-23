@@ -1,9 +1,12 @@
 "use client";
-// 도슨트 탭 — 상단 세그먼트 [대화 | 투어]. 대화=장소/일반 Q&A, 투어=라이브 투어 도슨트.
-import { Suspense } from "react";
+// 도슨트 탭 — [대화 | 투어]. 대화=Q&A(항상). 투어=라이브 투어(코스 활성 시에만 접근).
+import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Lock } from "lucide-react";
 import DocentPanel from "@/components/DocentPanel";
 import TourExperience, { type TourSource } from "@/components/TourExperience";
+import { useCourseDraft } from "@/stores/useCourseDraft";
 import { useT } from "@/lib/i18n/LocaleProvider";
 import type { POI } from "@/lib/types";
 
@@ -15,7 +18,13 @@ function DocentInner() {
   const name = params.get("name") ?? "";
   const session = params.get("session") ?? undefined;
   const savedId = params.get("savedId") ?? undefined;
-  const tab = params.get("tab") === "tour" ? "tour" : "chat";
+
+  // 코스 활성 = 작성 중 코스 2곳+ (또는 저장 투어 다시듣기 딥링크)
+  const draftCount = useCourseDraft((s) => s.pois.length);
+  const tourActive = draftCount >= 2 || !!savedId;
+  const requestedTour = params.get("tab") === "tour";
+  const tab: "chat" | "tour" = requestedTour && tourActive ? "tour" : "chat";
+  const [lockHint, setLockHint] = useState(false);
 
   const poi: POI | undefined = placeId
     ? {
@@ -32,30 +41,62 @@ function DocentInner() {
 
   const tourSource: TourSource = savedId ? { kind: "saved", id: savedId } : { kind: "draft" };
 
-  const go = (t: "chat" | "tour") => {
-    const q = new URLSearchParams();
-    if (t === "tour") q.set("tab", "tour");
-    router.replace(`/docent${q.toString() ? `?${q}` : ""}`);
-  };
+  function go(target: "chat" | "tour") {
+    if (target === "tour") {
+      if (!tourActive) {
+        setLockHint(true);
+        return;
+      }
+      router.replace("/docent?tab=tour");
+    } else {
+      setLockHint(false);
+      router.replace("/docent");
+    }
+  }
 
   return (
     <main className="flex h-full flex-col px-4 pt-6">
       <header className="mb-3 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-navy">{t("docent.title")}</h1>
         <div className="flex gap-1 rounded-chip bg-black/5 p-0.5 text-sm font-semibold">
-          {(["chat", "tour"] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => go(k)}
-              className={`pressable rounded-chip px-3 py-1 ${
-                tab === k ? "bg-white text-navy shadow-card" : "text-neutral-500"
-              }`}
-            >
-              {k === "chat" ? t("docent.chatTab") : t("docent.tourTab")}
-            </button>
-          ))}
+          <button
+            onClick={() => go("chat")}
+            className={`pressable rounded-chip px-3 py-1 ${
+              tab === "chat" ? "bg-white text-navy shadow-card" : "text-neutral-500"
+            }`}
+          >
+            {t("docent.chatTab")}
+          </button>
+          <button
+            onClick={() => go("tour")}
+            aria-disabled={!tourActive}
+            className={`pressable inline-flex items-center gap-1 rounded-chip px-3 py-1 ${
+              tab === "tour"
+                ? "bg-white text-navy shadow-card"
+                : tourActive
+                ? "text-neutral-500"
+                : "text-neutral-300"
+            }`}
+          >
+            {!tourActive && <Lock className="h-3 w-3" aria-hidden />}
+            {t("docent.tourTab")}
+          </button>
         </div>
       </header>
+
+      {/* 투어 잠금 안내 */}
+      {lockHint && !tourActive && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-card bg-ai/10 px-4 py-3 text-sm">
+          <span className="min-w-0 text-neutral-600">{t("docent.tourLocked")}</span>
+          <Link
+            href="/course"
+            onClick={() => setLockHint(false)}
+            className="pressable shrink-0 rounded-chip bg-navy px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            {t("course.title")}
+          </Link>
+        </div>
+      )}
 
       {tab === "tour" ? (
         <div className="min-h-0 flex-1 pb-2">
