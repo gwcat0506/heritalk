@@ -18,6 +18,7 @@ import { getUser } from "@/lib/auth";
 import { useLocale, useT } from "@/lib/i18n/LocaleProvider";
 import { distanceMeters } from "@/lib/poi";
 import { recommendNearbyCourse } from "@/lib/recommendCourse";
+import { readDocentStream, toolLabelKey } from "@/lib/docentStream";
 import { useUserLocation } from "@/lib/useUserLocation";
 import { saveTour, getSavedTour } from "@/lib/courses";
 import { positionAt, WALK_MPS, type TourData } from "@/lib/tour/route";
@@ -42,6 +43,7 @@ export default function TourExperience({ source }: { source: TourSource }) {
   const [level, setLevel] = useState("general");
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [nonce, setNonce] = useState(0); // 재시도 트리거
+  const builtRef = useRef(false); // 드래프트 투어 1회 빌드 후 코스 담기 등 draft 변경에도 재생성 방지
 
   // 요청 키 — pois 시그니처/saved id 변할 때만 재요청(+재시도 nonce)
   const reqKey = useMemo(() => {
@@ -62,11 +64,13 @@ export default function TourExperience({ source }: { source: TourSource }) {
         t ? (setTour(t), setStatus("ready")) : setStatus("error");
         return;
       }
+      if (source.kind !== "draft") builtRef.current = false; // saved/pois는 항상 재빌드 허용
       const pois = source.kind === "pois" ? source.pois : draftPois;
       if (pois.length < 2) {
         setStatus("empty");
         return;
       }
+      if (source.kind === "draft" && builtRef.current) return; // 이미 만든 드래프트 투어 유지
       setStatus("loading");
       const u = await getUser();
       const lv = (u?.user_metadata?.defaultLevel as string) ?? "general";
@@ -83,7 +87,11 @@ export default function TourExperience({ source }: { source: TourSource }) {
         const data = (await res.json()) as TourData & { error?: string };
         if (cancelled) return;
         if (data.error || !data.path?.length) setStatus("error");
-        else (setTour(data), setStatus("ready"));
+        else {
+          builtRef.current = true;
+          setTour(data);
+          setStatus("ready");
+        }
       } catch {
         if (!cancelled) setStatus("error");
       }
@@ -100,7 +108,10 @@ export default function TourExperience({ source }: { source: TourSource }) {
       <Centered>
         <p className="mb-3">{t("tour.failed")}</p>
         <button
-          onClick={() => setNonce((n) => n + 1)}
+          onClick={() => {
+            builtRef.current = false;
+            setNonce((n) => n + 1);
+          }}
           className="pressable inline-flex items-center gap-1 rounded-card bg-navy px-4 py-2 text-sm font-semibold text-white"
         >
           <RefreshCw className="h-4 w-4" aria-hidden />
@@ -213,10 +224,12 @@ function TourPlayer({
 }) {
   const { locale } = useLocale();
   const t = useT();
+  const draftAdd = useCourseDraft((s) => s.toggle);
   const [mode, setMode] = useState<"live" | "preview">("live");
   const [log, setLog] = useState<Chat[]>([]);
   const [input, setInput] = useState("");
   const [asking, setAsking] = useState(false);
+  const [toolLabel, setToolLabel] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[] | undefined>(undefined);
   const [pos, setPos] = useState<LatLng>({ lat: tour.path[0].lat, lng: tour.path[0].lng });
   const [geoError, setGeoError] = useState(false);
@@ -402,8 +415,8 @@ function TourPlayer({
     const history = log
       .filter((c) => c.kind === "user" || c.kind === "docent")
       .map((c) => ({ role: c.kind === "user" ? "user" : "assistant", content: c.text }));
-    push({ kind: "docent", text: "" });
     let answer = "";
+    let pushed = false;
     try {
       const res = await fetch("/api/docent", {
         method: "POST",
@@ -415,34 +428,34 @@ function TourPlayer({
           level,
           language: locale,
           interests,
+          origin: pos,
         }),
       });
       if (!res.body) throw new Error("no body");
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      let metaDone = false;
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        if (!metaDone) {
-          const nl = buf.indexOf("\n");
-          if (nl === -1) continue;
-          buf = buf.slice(nl + 1);
-          metaDone = true;
-        }
-        if (buf) {
-          answer += buf;
-          buf = "";
-          const cur = answer;
-          setLog((l) => updateLast(l, cur));
+      for await (const ev of readDocentStream(res)) {
+        if (ev.t === "tool") {
+          setToolLabel(t(toolLabelKey(ev.name)));
+        } else if (ev.t === "action" && ev.action === "addToCourse") {
+          draftAdd(ev.poi);
+          push({ kind: "system", text: t("agent.added", { name: ev.poi.name }) });
+        } else if (ev.t === "delta") {
+          setToolLabel(null);
+          answer += ev.text;
+          if (!pushed) {
+            pushed = true;
+            push({ kind: "docent", text: answer });
+          } else {
+            const cur = answer;
+            setLog((l) => updateLast(l, cur));
+          }
         }
       }
-      if (!answer) setLog((l) => updateLast(l, t("tour.askEmpty")));
+      if (!pushed) push({ kind: "docent", text: t("tour.askEmpty") });
     } catch {
-      setLog((l) => updateLast(l, t("tour.askError")));
+      if (pushed) setLog((l) => updateLast(l, t("tour.askError")));
+      else push({ kind: "docent", text: t("tour.askError") });
     } finally {
+      setToolLabel(null);
       setAsking(false);
     }
   }
@@ -615,6 +628,12 @@ function TourPlayer({
         {log.map((c, i) => (
           <Bubble key={i} c={c} streaming={asking && i === log.length - 1 && c.kind === "docent"} />
         ))}
+        {toolLabel && (
+          <div className="flex items-center gap-1.5 px-1 text-xs font-medium text-ai">
+            <span className="inline-block animate-pulse">●</span>
+            {toolLabel}
+          </div>
+        )}
       </div>
 
       <form

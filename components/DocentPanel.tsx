@@ -24,6 +24,9 @@ import {
 } from "@/lib/conversations";
 import { getUser } from "@/lib/auth";
 import { useLocale, useT } from "@/lib/i18n/LocaleProvider";
+import { readDocentStream, toolLabelKey } from "@/lib/docentStream";
+import { useCourseDraft } from "@/stores/useCourseDraft";
+import { useUserLocation } from "@/lib/useUserLocation";
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -55,11 +58,14 @@ export default function DocentPanel({
 }) {
   const { locale } = useLocale();
   const t = useT();
+  const { center } = useUserLocation(undefined, { auto: false });
+  const courseToggle = useCourseDraft((s) => s.toggle);
   const [prefs, setPrefs] = useState<{ level?: string; interests?: string[] }>({});
   const [userId, setUserId] = useState<string | null | undefined>(undefined); // undefined=로딩
   const [messages, setMessages] = useState<DocentMessage[]>([greeting(t, poi?.name)]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [toolLabel, setToolLabel] = useState<string | null>(null);
 
   // 현재 대화의 grounding 대상(거점). poi 진입 또는 이어보기로 세팅.
   const [activePlaceId, setActivePlaceId] = useState<string | undefined>(poi?.id);
@@ -165,6 +171,7 @@ export default function DocentPanel({
 
     let answer = "";
     let citations: Citation[] = [];
+    let pushed = false;
     try {
       const res = await fetch("/api/docent", {
         method: "POST",
@@ -176,35 +183,25 @@ export default function DocentPanel({
           level: prefs.level,
           language: locale,
           interests: prefs.interests,
+          origin: center,
         }),
       });
       if (!res.body) throw new Error("no body");
 
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      let metaDone = false;
-      let pushed = false;
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-
-        if (!metaDone) {
-          const nl = buf.indexOf("\n");
-          if (nl === -1) continue;
-          try {
-            citations = JSON.parse(buf.slice(0, nl)).citations ?? [];
-          } catch {
-            citations = [];
-          }
-          buf = buf.slice(nl + 1);
-          metaDone = true;
-        }
-        if (buf) {
-          answer += buf;
-          buf = "";
+      for await (const ev of readDocentStream(res)) {
+        if (ev.t === "citations") {
+          citations = ev.items;
+        } else if (ev.t === "tool") {
+          setToolLabel(t(toolLabelKey(ev.name)));
+        } else if (ev.t === "action" && ev.action === "addToCourse") {
+          courseToggle(ev.poi);
+          setMessages((m) => [
+            ...m,
+            { role: "assistant", content: t("agent.added", { name: ev.poi.name }) },
+          ]);
+        } else if (ev.t === "delta") {
+          setToolLabel(null);
+          answer += ev.text;
           if (!pushed) {
             pushed = true;
             const cur = answer;
@@ -215,14 +212,13 @@ export default function DocentPanel({
           }
         }
       }
-      if (!pushed) {
-        // 토큰이 전혀 안 온 경우(예외) — 빈 답변 카드 방지
-        answer = answer || "응답을 받지 못했어요.";
-        setMessages((m) => [...m, { role: "assistant", content: answer, citations }]);
+      if (!pushed && !answer) {
+        setMessages((m) => [...m, { role: "assistant", content: t("tour.askEmpty") }]);
       }
     } catch {
-      setMessages((m) => [...m, { role: "assistant", content: "도슨트 연결에 실패했어요." }]);
+      setMessages((m) => [...m, { role: "assistant", content: t("tour.askError") }]);
     } finally {
+      setToolLabel(null);
       setStreaming(false);
     }
 
@@ -318,7 +314,13 @@ export default function DocentPanel({
           </div>
           ))
         )}
-        {streaming && messages[messages.length - 1]?.role === "user" && (
+        {toolLabel && (
+          <div className="flex items-center gap-1.5 px-1 text-xs font-medium text-ai">
+            <span className="inline-block animate-pulse">●</span>
+            {toolLabel}
+          </div>
+        )}
+        {streaming && !toolLabel && messages[messages.length - 1]?.role === "user" && (
           <div className="text-sm text-neutral-400">{t("docent.answering")}</div>
         )}
         <div ref={endRef} />
