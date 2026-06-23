@@ -1,14 +1,14 @@
 "use client";
-// 홈 — 지도 풀블리드 히어로(가치 한 줄 + "주변 코스 추천" 메인 CTA) + 아래 보조(AI 추천·스와이프 덱).
+// 홈 — 지도 풀블리드 히어로(가치 한 줄 + "주변 코스 추천" 메인 CTA) + 스와이프 덱(개별 장소 탐색).
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { districts, poisIn, nearby, walkEstimate } from "@/lib/poi";
+import { nearby } from "@/lib/poi";
 import { buildWalkablePool } from "@/lib/heritage-pool";
 import { recommendNearbyCourse } from "@/lib/recommendCourse";
 import { useCourseDraft } from "@/stores/useCourseDraft";
-import { POIThumbnail, PrimaryButton, Wordmark, Skeleton } from "@/components/ui";
+import { Wordmark, Skeleton } from "@/components/ui";
 import { useT } from "@/lib/i18n/LocaleProvider";
-import { Sparkles, ArrowRight, MapPin, Navigation } from "lucide-react";
+import { MapPin, Navigation } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { useUserLocation } from "@/lib/useUserLocation";
 import MapSheet from "@/components/MapSheet";
@@ -17,24 +17,6 @@ import type { POI } from "@/lib/types";
 
 // 서울 도심 기준점.
 const SEOUL = { lat: 37.5759, lng: 126.9769 };
-
-function pickRecommendation(pool: POI[], seed: number): POI[] {
-  // 첫인상 — 실제 사진이 있는 거점 3곳 이상인 자치구를 우선해서 추천.
-  const hasImg = (p: POI) => !!p.imageUrl;
-  const imagedDs = districts(pool).filter(
-    (d) => poisIn(pool, d).filter(hasImg).length >= 3
-  );
-  const ds = imagedDs.length
-    ? imagedDs
-    : districts(pool).filter((d) => poisIn(pool, d).length >= 3);
-  if (ds.length === 0) return pool.slice(0, 3);
-  const d = ds[seed % ds.length];
-  const inDistrict = poisIn(pool, d);
-  const imaged = inDistrict.filter(hasImg);
-  const base = imaged.length >= 3 ? imaged : inDistrict;
-  const s = seed % base.length;
-  return [base[s], base[(s + 1) % base.length], base[(s + 2) % base.length]];
-}
 
 export default function HomePage() {
   const t = useT();
@@ -56,12 +38,15 @@ export default function HomePage() {
   }, []);
 
   const ready = pool.length > 0;
-  const rec = useMemo(() => (ready ? pickRecommendation(pool, seed) : []), [pool, ready, seed]);
-  const est = walkEstimate(rec);
 
+  // 지도 핀(도심 주변) + 내 위치 근처 자치구 라벨
   const mapPins = useMemo(
     () => (ready ? nearby(pool, SEOUL, 50_000, 8).map((poi) => ({ poi })) : []),
     [pool, ready]
+  );
+  const area = useMemo(
+    () => (ready ? nearby(pool, center, 50_000, 1)[0]?.district : undefined),
+    [pool, ready, center]
   );
 
   const deckPool = useMemo(() => {
@@ -99,13 +84,6 @@ export default function HomePage() {
     }
   }
 
-  function walkThisCourse() {
-    rec.forEach((p) => {
-      if (!contains(p.id)) toggle(p);
-    });
-    router.push("/course");
-  }
-
   function decide(poi: POI, like: boolean) {
     if (!like) return;
     const already = contains(poi.id);
@@ -127,10 +105,10 @@ export default function HomePage() {
         />
 
         {/* 위치 칩(상단) */}
-        {ready && rec[0] && (
+        {area && (
           <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-1 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
             <MapPin className="h-3.5 w-3.5" aria-hidden />
-            {t("home.areaRec", { area: rec[0].district })}
+            {t("home.areaRec", { area })}
           </span>
         )}
 
@@ -151,54 +129,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* AI 추천 코스 (정돈된 단일 추천) */}
-      <section className="rise mt-6 px-4" style={{ animationDelay: "80ms" }}>
-        <div className="rounded-card bg-ai-gradient p-4 shadow-card">
-          <span className="chip mb-3 bg-ai/15 text-ai">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {t("home.aiCourse")}
-          </span>
-          {ready ? (
-            <>
-              <div className="mb-3 flex items-center gap-2">
-                {rec.map((p, i) => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <POIThumbnail poi={p} className="h-14 w-14 rounded-chip" />
-                    {i < rec.length - 1 && (
-                      <ArrowRight className="h-4 w-4 text-neutral-400" aria-hidden />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <p className="mb-3 text-sm text-neutral-600">
-                {rec.map((p) => p.name).join(" · ")}
-                <br />
-                <span className="text-neutral-500">
-                  {t("home.courseMeta", {
-                    min: est.minutes,
-                    km: est.km.toFixed(1),
-                    n: rec.length,
-                  })}
-                </span>
-              </p>
-              <PrimaryButton onClick={walkThisCourse}>{t("home.walkThisCourse")}</PrimaryButton>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-14 w-14 rounded-chip bg-white/60" />
-                <Skeleton className="h-14 w-14 rounded-chip bg-white/60" />
-                <Skeleton className="h-14 w-14 rounded-chip bg-white/60" />
-              </div>
-              <Skeleton className="h-4 w-3/4 bg-white/60" />
-              <Skeleton className="h-11 w-full rounded-card bg-white/60" />
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* 스와이프 덱(좌 패스 / 우 코스에 담기) */}
-      <section className="rise mt-6 px-4" style={{ animationDelay: "160ms" }}>
+      <section className="rise mt-6 px-4" style={{ animationDelay: "100ms" }}>
         <h2 className="font-semibold text-neutral-800">{t("home.deckTitle")}</h2>
         <p className="mb-3 text-xs text-neutral-500">{t("home.deckHint")}</p>
         {ready ? (
