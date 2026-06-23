@@ -235,6 +235,8 @@ export async function* runDocentAgent(opts: AgentOpts): AsyncGenerator<AgentEven
     role: h.role === "user" ? "user" : "model",
     parts: [{ text: h.content }],
   }));
+  // Gemini는 history의 첫 턴이 반드시 'user'여야 함 → 인사말 등 선행 model 턴 제거.
+  while (history.length && history[0].role !== "user") history.shift();
   const chat = model.startChat({ history });
 
   // 첫 메시지: grounding 컨텍스트 + 질문

@@ -210,6 +210,9 @@ export default function DocentPanel({
             const cur = answer;
             setMessages((m) => updateLast(m, cur));
           }
+        } else if (ev.t === "error" && !pushed) {
+          pushed = true;
+          setMessages((m) => [...m, { role: "assistant", content: t("tour.askError") }]);
         }
       }
       if (!pushed && !answer) {
@@ -262,7 +265,7 @@ export default function DocentPanel({
         )}
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="no-scrollbar flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length <= 1 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
             <div className="grid h-16 w-16 place-items-center rounded-full bg-ai-gradient text-ai">
@@ -281,7 +284,7 @@ export default function DocentPanel({
           </div>
         ) : (
           messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`msg-in flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] rounded-card px-3 py-2 text-sm ${
                 m.role === "user" ? "bg-navy text-white" : "bg-black/5 text-neutral-800"
@@ -321,7 +324,13 @@ export default function DocentPanel({
           </div>
         )}
         {streaming && !toolLabel && messages[messages.length - 1]?.role === "user" && (
-          <div className="text-sm text-neutral-400">{t("docent.answering")}</div>
+          <div className="msg-in flex justify-start">
+            <div className="typing-dots rounded-card bg-black/5 px-3 py-2.5 text-neutral-500">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
         )}
         <div ref={endRef} />
       </div>

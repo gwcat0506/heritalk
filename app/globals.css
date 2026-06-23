@@ -57,6 +57,58 @@ body {
   }
 }
 
+/* 채팅 메시지 등장 — 1회 fade + slide-up */
+@keyframes msgIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.msg-in {
+  animation: msgIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* 타이핑 인디케이터 — 점 3개 펄스 */
+.typing-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 1.5px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.4;
+  animation: typingDot 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes typingDot {
+  0%, 60%, 100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg-in {
+    animation: none;
+  }
+  .typing-dots span {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
 /* 스크롤바 숨김(가로·세로 공용) — 드래그/터치 스크롤은 유지 */
 .no-scrollbar {
   scrollbar-width: none;
