@@ -27,6 +27,10 @@ function writeCookie(name: string, value: string) {
   const exp = new Date(Date.now() + COOKIE_DAYS * 864e5).toUTCString();
   document.cookie = `${name}=${value}; path=/; expires=${exp}; SameSite=Lax`;
 }
+function hasCookie(name: string) {
+  if (typeof document === "undefined") return false;
+  return document.cookie.split("; ").some((c) => c.startsWith(`${name}=`));
+}
 
 export function LocaleProvider({
   initialLocale = "ko",
@@ -40,12 +44,15 @@ export function LocaleProvider({
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
   const [largeText, setLargeTextState] = useState<boolean>(initialLargeText);
 
-  // 로그인 사용자의 저장 설정으로 1회 동기화(쿠키가 없거나 다를 때).
+  // 로그인 사용자의 저장 설정으로 1회 동기화 — 단, 이 기기에 이미 명시적 선택(쿠키)이
+  // 있으면 그 값을 우선해 토글이 비동기 메타데이터로 되돌려지는 일을 막는다.
   useEffect(() => {
     getUser().then((u) => {
       const m = (u?.user_metadata ?? {}) as Record<string, unknown>;
-      if (m.language === "ko" || m.language === "en") setLocaleState(m.language);
-      if (typeof m.largeText === "boolean") setLargeTextState(m.largeText);
+      if (!hasCookie("locale") && (m.language === "ko" || m.language === "en"))
+        setLocaleState(m.language);
+      if (!hasCookie("pref_large") && typeof m.largeText === "boolean")
+        setLargeTextState(m.largeText);
     });
   }, []);
 
