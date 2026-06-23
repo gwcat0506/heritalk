@@ -1,18 +1,18 @@
 "use client";
-// 홈 — 지도 풀블리드 히어로(가치 한 줄 + "주변 코스 추천" 메인 CTA) + 스와이프 덱(개별 장소 탐색).
+// 홈 — 단일 주경로(지도 히어로 + 주변 코스) + 보조 진입(도슨트/직접) + 발견 레일. 위치는 옵인.
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nearby } from "@/lib/poi";
 import { buildWalkablePool } from "@/lib/heritage-pool";
 import { recommendNearbyCourse } from "@/lib/recommendCourse";
 import { useCourseDraft } from "@/stores/useCourseDraft";
-import { Wordmark, Skeleton } from "@/components/ui";
+import { POIThumbnail, CategoryChip, Wordmark, Skeleton } from "@/components/ui";
 import { useT } from "@/lib/i18n/LocaleProvider";
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin, Navigation, MessagesSquare, Route, ChevronRight } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { useUserLocation } from "@/lib/useUserLocation";
 import MapSheet from "@/components/MapSheet";
-import SwipeDeck from "@/components/SwipeDeck";
 import type { POI } from "@/lib/types";
 
 // 서울 도심 기준점.
@@ -20,13 +20,11 @@ const SEOUL = { lat: 37.5759, lng: 126.9769 };
 
 export default function HomePage() {
   const t = useT();
-  const [seed, setSeed] = useState(1);
   const [mapOpen, setMapOpen] = useState(false);
   const [pool, setPool] = useState<POI[]>([]);
   const [recBusy, setRecBusy] = useState(false);
-  const { toggle, contains, clear } = useCourseDraft();
-  const draftCount = useCourseDraft((s) => s.pois.length);
-  const { center, locate } = useUserLocation();
+  const { toggle, clear } = useCourseDraft();
+  const { center, located, status, locate } = useUserLocation(undefined, { auto: false });
   const router = useRouter();
 
   // KHS 서울 목록 → 워커블 풀(박물관 + 장소형)
@@ -39,7 +37,6 @@ export default function HomePage() {
 
   const ready = pool.length > 0;
 
-  // 지도 핀(도심 주변) + 내 위치 근처 자치구 라벨
   const mapPins = useMemo(
     () => (ready ? nearby(pool, SEOUL, 50_000, 8).map((poi) => ({ poi })) : []),
     [pool, ready]
@@ -49,18 +46,15 @@ export default function HomePage() {
     [pool, ready, center]
   );
 
-  const deckPool = useMemo(() => {
+  // 발견 레일 — 사진 있는 가까운 거점.
+  const discover = useMemo(() => {
     if (!ready) return [];
-    const near = nearby(pool, SEOUL, 12_000, 30);
-    const shuffle = (arr: POI[]) =>
-      [...arr].sort((a, b) => ((a.id + seed) > (b.id + seed) ? 1 : -1));
-    // 덱은 배열 끝에서부터 소비된다 → 사진 있는 거점을 끝에 배치해 먼저 보이게(첫인상).
-    const imaged = shuffle(near.filter((p) => p.imageUrl));
-    const others = shuffle(near.filter((p) => !p.imageUrl));
-    return [...others, ...imaged].slice(-12);
-  }, [pool, ready, seed]);
+    return nearby(pool, center, 50_000, 24)
+      .filter((p) => p.imageUrl)
+      .slice(0, 10);
+  }, [pool, ready, center]);
 
-  // 메인 CTA — 내 위치(없으면 서울 도심) 기준 주변 코스를 만들어 결과로 이동.
+  // 메인 CTA — 내 위치(없으면 서울 도심) 기준 주변 코스 → 결과.
   async function recommendCourse() {
     if (recBusy) return;
     setRecBusy(true);
@@ -84,13 +78,8 @@ export default function HomePage() {
     }
   }
 
-  function decide(poi: POI, like: boolean) {
-    if (!like) return;
-    const already = contains(poi.id);
-    if (!already) toggle(poi);
-    const next = draftCount + (already ? 0 : 1);
-    if (next >= 4) router.push("/course/result");
-  }
+  const locActive = status === "granted" && located;
+  const locOff = status === "denied" || status === "unsupported";
 
   return (
     <main className="pb-4">
@@ -104,13 +93,28 @@ export default function HomePage() {
           aria-label={t("home.mapOpen")}
         />
 
-        {/* 위치 칩(상단) */}
-        {area && (
-          <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-1 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
-            <MapPin className="h-3.5 w-3.5" aria-hidden />
-            {t("home.areaRec", { area })}
-          </span>
-        )}
+        {/* 위치 권한 컨트롤(상단) */}
+        <div className="absolute left-4 top-4 z-10">
+          {locActive ? (
+            <span className="inline-flex items-center gap-1 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-semibold text-navy shadow-card backdrop-blur">
+              <MapPin className="h-3.5 w-3.5" aria-hidden />
+              {area ? t("home.areaRec", { area }) : t("home.locNear")}
+            </span>
+          ) : locOff ? (
+            <span className="inline-flex items-center gap-1 rounded-chip bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-500 shadow-card backdrop-blur">
+              <MapPin className="h-3.5 w-3.5" aria-hidden />
+              {t("home.locOff")}
+            </span>
+          ) : (
+            <button
+              onClick={() => locate()}
+              className="pressable inline-flex items-center gap-1 rounded-chip bg-white px-3 py-1.5 text-xs font-semibold text-navy shadow-card"
+            >
+              <Navigation className="h-3.5 w-3.5" aria-hidden />
+              {t("home.locEnable")}
+            </button>
+          )}
+        </div>
 
         {/* 하단 스크림 + 가치 한 줄 + 메인 CTA */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-navy via-navy/55 to-transparent px-5 pb-5 pt-20">
@@ -129,19 +133,49 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 스와이프 덱(좌 패스 / 우 코스에 담기) */}
-      <section className="rise mt-6 px-4" style={{ animationDelay: "100ms" }}>
-        <h2 className="font-semibold text-neutral-800">{t("home.deckTitle")}</h2>
-        <p className="mb-3 text-xs text-neutral-500">{t("home.deckHint")}</p>
+      {/* 보조 진입 — 도슨트 대화 / 직접 코스 */}
+      <section className="rise mt-5 grid grid-cols-2 gap-3 px-4" style={{ animationDelay: "80ms" }}>
+        <Link href="/docent" className="pressable card flex flex-col items-start gap-2 p-4">
+          <span className="grid h-10 w-10 place-items-center rounded-chip bg-ai-gradient text-ai">
+            <MessagesSquare className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="text-sm font-semibold text-neutral-800">{t("home.secChat")}</span>
+        </Link>
+        <Link href="/course" className="pressable card flex flex-col items-start gap-2 p-4">
+          <span className="grid h-10 w-10 place-items-center rounded-chip bg-ai-gradient text-ai">
+            <Route className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="text-sm font-semibold text-neutral-800">{t("home.secBuild")}</span>
+        </Link>
+      </section>
+
+      {/* 발견 레일 — 가까운 거점 둘러보기 */}
+      <section className="rise mt-6" style={{ animationDelay: "160ms" }}>
+        <div className="mb-3 flex items-center justify-between px-4">
+          <h2 className="font-semibold text-neutral-800">{t("home.discoverTitle")}</h2>
+          <Link href="/map" className="pressable text-neutral-300" aria-label={t("home.mapOpen")}>
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </Link>
+        </div>
         {ready ? (
-          <SwipeDeck
-            pois={deckPool}
-            poolKey={seed}
-            onDecide={decide}
-            onRefill={() => setSeed((s) => s + 1)}
-          />
+          <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
+            {discover.map((p) => (
+              <Link key={p.id} href={`/place/${p.id}`} className="pressable w-40 shrink-0">
+                <POIThumbnail poi={p} className="h-28 w-full rounded-card" />
+                <div className="mt-1.5">
+                  <CategoryChip category={p.category} />
+                  <p className="mt-1 line-clamp-1 text-sm font-medium text-neutral-800">{p.name}</p>
+                  <p className="line-clamp-1 text-xs text-neutral-400">{p.district}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
         ) : (
-          <Skeleton className="h-[380px] w-full rounded-card" />
+          <div className="flex gap-3 px-4">
+            <Skeleton className="h-40 w-40 shrink-0 rounded-card" />
+            <Skeleton className="h-40 w-40 shrink-0 rounded-card" />
+            <Skeleton className="h-40 w-24 shrink-0 rounded-card" />
+          </div>
         )}
       </section>
 

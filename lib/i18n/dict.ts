@@ -38,6 +38,12 @@ export const dict: Record<Locale, Record<string, string>> = {
     "home.deckRefill": "다시 채우기",
     "home.heroCta": "주변 코스 추천받기",
     "home.heroCtaBusy": "주변 거점 찾는 중…",
+    "home.locEnable": "내 위치 켜기",
+    "home.locNear": "내 주변",
+    "home.locOff": "위치 꺼짐 · 서울 도심 기준",
+    "home.secChat": "도슨트와 대화",
+    "home.secBuild": "직접 코스 짜기",
+    "home.discoverTitle": "가까운 거점 둘러보기",
 
     // 마이 — 헤더/상태
     "my.title": "마이",
@@ -242,6 +248,12 @@ export const dict: Record<Locale, Record<string, string>> = {
     "home.deckRefill": "Refill",
     "home.heroCta": "Recommend a course near me",
     "home.heroCtaBusy": "Finding nearby stops…",
+    "home.locEnable": "Use my location",
+    "home.locNear": "Near me",
+    "home.locOff": "Location off · using central Seoul",
+    "home.secChat": "Chat with docent",
+    "home.secBuild": "Build a course",
+    "home.discoverTitle": "Explore nearby places",
 
     "my.title": "My",
     "my.needLogin.title": "Sign in required",
