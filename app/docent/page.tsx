@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, MessagesSquare } from "lucide-react";
 import DocentPanel from "@/components/DocentPanel";
 import TourExperience, { type TourSource } from "@/components/TourExperience";
 import { useCourseDraft } from "@/stores/useCourseDraft";
@@ -57,7 +57,15 @@ function DocentInner() {
   return (
     <main className="flex h-full flex-col px-4 pt-6">
       <header className="mb-3 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy">{t("docent.title")}</h1>
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-ai-gradient text-ai">
+            <MessagesSquare className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="leading-tight">
+            <p className="text-lg font-bold text-navy">{t("docent.title")}</p>
+            <p className="text-xs text-neutral-400">{t("docent.role")}</p>
+          </div>
+        </div>
         <div className="flex gap-1 rounded-chip bg-black/5 p-0.5 text-sm font-semibold">
           <button
             onClick={() => go("chat")}

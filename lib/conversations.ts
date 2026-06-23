@@ -70,6 +70,14 @@ export async function createSession(opts: {
   return data.id as string;
 }
 
+/** 세션 삭제 — 메시지 먼저 지우고 세션 제거(RLS로 본인 것만). */
+export async function deleteSession(id: string): Promise<void> {
+  const supabase = createClient();
+  if (!supabase) return;
+  await supabase.from("messages").delete().eq("session_id", id);
+  await supabase.from("agent_sessions").delete().eq("id", id);
+}
+
 /** 세션의 메시지 전체(시간순) → DocentMessage[]. */
 export async function loadMessages(sessionId: string): Promise<DocentMessage[]> {
   const supabase = createClient();

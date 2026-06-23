@@ -160,6 +160,7 @@ export const dict: Record<Locale, Record<string, string>> = {
 
     // 도슨트
     "docent.title": "헤리",
+    "docent.role": "AI 역사 도슨트",
     "docent.chatTab": "대화",
     "docent.tourTab": "투어",
     "docent.history": "기록",
@@ -385,6 +386,7 @@ export const dict: Record<Locale, Record<string, string>> = {
     "saved.walkTour": "Walk as tour",
 
     "docent.title": "Heri",
+    "docent.role": "AI history docent",
     "docent.chatTab": "Chat",
     "docent.tourTab": "Tour",
     "docent.history": "History",

@@ -11,6 +11,7 @@ import {
   MapPin,
   MessageCircle,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import type { POI, DocentMessage, Citation } from "@/lib/types";
 import {
@@ -20,6 +21,7 @@ import {
   loadMessages,
   saveMessage,
   getSession,
+  deleteSession,
   type SessionRow,
 } from "@/lib/conversations";
 import { getUser } from "@/lib/auth";
@@ -74,6 +76,7 @@ export default function DocentPanel({
 
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +146,13 @@ export default function DocentPanel({
     setActivePlaceId(row.place_id ?? undefined);
     setActivePlaceName(row.title ?? undefined);
     setMessages(msgs.length ? msgs : [greeting(t, row.title ?? undefined)]);
+  }
+
+  async function removeSession(id: string) {
+    setConfirmDeleteId(null);
+    setSessions((arr) => arr.filter((x) => x.id !== id)); // 낙관적 제거
+    await deleteSession(id);
+    if (sessionId === id) startFresh(); // 현재 보던 세션이면 새 대화로
   }
 
   async function ask(question: string) {
@@ -237,33 +247,29 @@ export default function DocentPanel({
 
   return (
     <div className={`card relative flex ${className} flex-col overflow-hidden`}>
-      <div className="flex items-center gap-2 border-b border-neutral-100 px-4 py-3">
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-ai-gradient text-ai">
-          <MessagesSquare className="h-4 w-4" aria-hidden />
-        </span>
-        <span className="font-semibold">{t("docent.title")}</span>
-        {userId && (
-          <div className="ml-auto flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                refreshSessions();
-                setHistoryOpen((v) => !v);
-              }}
-              className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
-            >
-              <Clock className="h-3.5 w-3.5" aria-hidden />
-              {t("docent.history")}
-            </button>
-            <button
-              onClick={startFresh}
-              className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              {t("docent.newChat")}
-            </button>
-          </div>
-        )}
-      </div>
+      {/* 카드 헤더 — 페르소나(헤리)는 페이지 상단에 있으므로 여기선 액션만(로그인 시) */}
+      {userId && (
+        <div className="flex items-center justify-end gap-1.5 border-b border-neutral-100 px-4 py-2">
+          <button
+            onClick={() => {
+              refreshSessions();
+              setConfirmDeleteId(null);
+              setHistoryOpen((v) => !v);
+            }}
+            className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
+          >
+            <Clock className="h-3.5 w-3.5" aria-hidden />
+            {t("docent.history")}
+          </button>
+          <button
+            onClick={startFresh}
+            className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-medium text-neutral-600"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            {t("docent.newChat")}
+          </button>
+        </div>
+      )}
 
       <div className="no-scrollbar flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length <= 1 ? (
@@ -384,7 +390,10 @@ export default function DocentPanel({
           <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
             <span className="font-semibold">{t("docent.historyTitle")}</span>
             <button
-              onClick={() => setHistoryOpen(false)}
+              onClick={() => {
+                setConfirmDeleteId(null);
+                setHistoryOpen(false);
+              }}
               className="pressable px-1 text-neutral-400"
               aria-label="닫기"
             >
@@ -397,23 +406,52 @@ export default function DocentPanel({
             ) : (
               <div className="space-y-1.5">
                 {sessions.map((s) => (
-                  <button
+                  <div
                     key={s.id}
-                    onClick={() => openSession(s)}
-                    className="pressable flex w-full items-center gap-2 rounded-card border border-neutral-100 p-3 text-left hover:bg-black/5"
+                    className="flex items-center gap-1 rounded-card border border-neutral-100 pr-1.5 hover:bg-black/5"
                   >
-                    {s.mode === "place" ? (
-                      <MapPin className="h-4 w-4 shrink-0 text-navy" aria-hidden />
-                    ) : (
-                      <MessageCircle className="h-4 w-4 shrink-0 text-ai" aria-hidden />
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-neutral-800">
-                        {s.title || t("docent.untitled")}
+                    <button
+                      onClick={() => openSession(s)}
+                      className="pressable flex min-w-0 flex-1 items-center gap-2 p-3 text-left"
+                    >
+                      {s.mode === "place" ? (
+                        <MapPin className="h-4 w-4 shrink-0 text-navy" aria-hidden />
+                      ) : (
+                        <MessageCircle className="h-4 w-4 shrink-0 text-ai" aria-hidden />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-neutral-800">
+                          {s.title || t("docent.untitled")}
+                        </span>
+                        <span className="block text-xs text-neutral-400">{timeAgo(s.updated_at)}</span>
                       </span>
-                      <span className="block text-xs text-neutral-400">{timeAgo(s.updated_at)}</span>
-                    </span>
-                  </button>
+                    </button>
+                    {confirmDeleteId === s.id ? (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={() => removeSession(s.id)}
+                          className="pressable rounded-chip bg-red-500 px-2 py-1 text-xs font-semibold text-white"
+                        >
+                          {t("course.delete")}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          aria-label={t("common.cancel")}
+                          className="pressable px-1 text-neutral-400"
+                        >
+                          <X className="h-4 w-4" aria-hidden />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(s.id)}
+                        aria-label={t("course.delete")}
+                        className="pressable shrink-0 p-2 text-neutral-300 hover:text-red-500"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
