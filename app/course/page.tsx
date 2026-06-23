@@ -10,7 +10,7 @@ import CourseStops from "@/components/CourseStops";
 import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function CoursePage() {
-  const { pois, remove, move, clear } = useCourseDraft();
+  const { pois, remove, reorder, clear } = useCourseDraft();
   const router = useRouter();
   const t = useT();
   const est = walkEstimate(pois);
@@ -57,7 +57,7 @@ export default function CoursePage() {
       ) : (
         <>
           <p className="mb-2 px-1 text-xs text-neutral-400">{t("course.editHint")}</p>
-          <CourseStops pois={pois} onMove={move} onRemove={remove} />
+          <CourseStops pois={pois} onReorder={reorder} onRemove={remove} />
         </>
       )}
 

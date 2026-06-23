@@ -11,6 +11,7 @@ interface CourseDraftState {
   contains: (id: string) => boolean;
   remove: (id: string) => void;
   move: (from: number, to: number) => void;
+  reorder: (pois: POI[]) => void; // 전체 순서 교체(드래그 정렬)
   swap: (i: number, j: number) => void;
   setStart: (id: string) => void;
   clear: () => void;
@@ -43,6 +44,7 @@ export const useCourseDraft = create<CourseDraftState>()(
           next.splice(to, 0, m);
           return { pois: next };
         }),
+      reorder: (pois) => set({ pois }),
       swap: (i, j) =>
         set((s) => {
           if (i < 0 || j < 0 || i >= s.pois.length || j >= s.pois.length)
