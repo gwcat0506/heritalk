@@ -1,30 +1,26 @@
 "use client";
-// 코스 허브 — 토이 CourseHubView 이식: 담은 거점 편집(순서·삭제·시작점) + 예상 + 걷기.
+// 코스 허브 — 거점 추가 진입 + 모바일 제스처 편집(드래그 정렬·스와이프 삭제) + 하단 고정 요약/CTA.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Map, Sparkles, ChevronUp, ChevronDown, Route } from "lucide-react";
+import { Map, Sparkles, Route } from "lucide-react";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { walkEstimate } from "@/lib/poi";
-import {
-  POIThumbnail,
-  PrimaryButton,
-  CategoryChip,
-  EmptyState,
-} from "@/components/ui";
+import { EmptyState } from "@/components/ui";
+import CourseStops from "@/components/CourseStops";
 import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function CoursePage() {
-  const { pois, startId, remove, swap, setStart, clear } = useCourseDraft();
+  const { pois, remove, move, clear } = useCourseDraft();
   const router = useRouter();
   const t = useT();
   const est = walkEstimate(pois);
-  const start = startId ?? pois[0]?.id;
+  const has = pois.length > 0;
 
   return (
-    <main className="px-4 pt-6">
+    <main className={`px-4 pt-6 ${has ? "pb-32" : ""}`}>
       <div className="mb-3 flex items-center justify-between">
         <h1 className="text-xl font-bold text-navy">{t("course.title")}</h1>
-        {pois.length > 0 && (
+        {has && (
           <button onClick={clear} className="pressable text-sm text-neutral-400">
             {t("course.clearAll")}
           </button>
@@ -49,7 +45,7 @@ export default function CoursePage() {
         </Link>
       </div>
 
-      {pois.length === 0 ? (
+      {!has ? (
         <div className="card">
           <EmptyState
             icon={<Route className="h-7 w-7" strokeWidth={1.8} aria-hidden />}
@@ -60,74 +56,31 @@ export default function CoursePage() {
         </div>
       ) : (
         <>
-          <div className="mb-3 rounded-card bg-white p-4 text-center shadow-card">
-            {t("course.estimate", {
-              min: est.minutes,
-              km: est.km.toFixed(1),
-              n: pois.length,
-            })}
-            <p className="mt-1 text-xs text-neutral-400">{t("course.estimateNote")}</p>
-          </div>
-
-          <ul className="mb-4 space-y-2">
-            {pois.map((p, i) => (
-              <li key={p.id} className="flex items-center gap-3 card p-2.5">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-navy text-xs font-bold text-white">
-                  {i + 1}
-                </span>
-                <POIThumbnail poi={p} className="h-12 w-12 rounded-chip" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="line-clamp-1 text-sm font-medium">{p.name}</p>
-                    {start === p.id && (
-                      <span className="chip bg-accent/15 text-accent">{t("course.startBadge")}</span>
-                    )}
-                  </div>
-                  <CategoryChip category={p.category} />
-                </div>
-                <div className="flex shrink-0 flex-col gap-1 text-neutral-400">
-                  <button
-                    onClick={() => i > 0 && swap(i, i - 1)}
-                    className="pressable px-1 disabled:opacity-20"
-                    disabled={i === 0}
-                    aria-label="위로"
-                  >
-                    <ChevronUp className="h-4 w-4" aria-hidden />
-                  </button>
-                  <button
-                    onClick={() => i < pois.length - 1 && swap(i, i + 1)}
-                    className="pressable px-1 disabled:opacity-20"
-                    disabled={i === pois.length - 1}
-                    aria-label="아래로"
-                  >
-                    <ChevronDown className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-                <div className="flex shrink-0 flex-col gap-1">
-                  <button
-                    onClick={() => setStart(p.id)}
-                    className="pressable rounded-chip bg-black/5 px-2 py-1 text-[11px]"
-                  >
-                    {t("course.setStart")}
-                  </button>
-                  <button
-                    onClick={() => remove(p.id)}
-                    className="pressable rounded-chip px-2 py-1 text-[11px] text-red-500"
-                  >
-                    {t("course.delete")}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <PrimaryButton
-            disabled={pois.length < 2}
-            onClick={() => router.push("/course/result")}
-          >
-            {pois.length < 2 ? t("course.needTwo") : t("course.finish")}
-          </PrimaryButton>
+          <p className="mb-2 px-1 text-xs text-neutral-400">{t("course.editHint")}</p>
+          <CourseStops pois={pois} onMove={move} onRemove={remove} />
         </>
+      )}
+
+      {/* 하단 고정 요약 + CTA */}
+      {has && (
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md border-t border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <p className="min-w-0 flex-1 truncate text-xs text-neutral-500">
+              {t("course.estimate", {
+                min: est.minutes,
+                km: est.km.toFixed(1),
+                n: pois.length,
+              })}
+            </p>
+            <button
+              disabled={pois.length < 2}
+              onClick={() => router.push("/course/result")}
+              className="pressable shrink-0 rounded-card bg-navy px-5 py-3 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {pois.length < 2 ? t("course.needTwo") : t("course.finish")}
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );
