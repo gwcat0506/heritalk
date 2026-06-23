@@ -16,8 +16,8 @@ import {
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { getUser } from "@/lib/auth";
 import { useLocale, useT } from "@/lib/i18n/LocaleProvider";
-import { distanceMeters, nearby } from "@/lib/poi";
-import { buildWalkablePool } from "@/lib/heritage-pool";
+import { distanceMeters } from "@/lib/poi";
+import { recommendNearbyCourse } from "@/lib/recommendCourse";
 import { useUserLocation } from "@/lib/useUserLocation";
 import { saveTour, getSavedTour } from "@/lib/courses";
 import { positionAt, WALK_MPS, type TourData } from "@/lib/tour/route";
@@ -144,29 +144,21 @@ function TourEmpty() {
   async function autoCourse() {
     setBusy(true);
     setMsg("");
-    const me = await locate();
-    if (!me) {
+    const r = await recommendNearbyCourse(await locate());
+    if (!r.ok) {
+      setMsg(
+        r.reason === "no-location"
+          ? "위치 권한을 허용하면 주변 코스를 추천할 수 있어요."
+          : r.reason === "too-few"
+          ? "주변에 걸을 만한 거점이 부족해요. 지도에서 직접 담아보세요."
+          : "추천에 실패했어요. 다시 시도해 주세요."
+      );
       setBusy(false);
-      setMsg("위치 권한을 허용하면 주변 코스를 추천할 수 있어요.");
       return;
     }
-    try {
-      const res = await fetch("/api/heritage/seoul");
-      const pool = buildWalkablePool((await res.json()).places ?? []);
-      const picks = nearby(pool, me, 1500, 4);
-      if (picks.length < 2) {
-        setMsg("주변에 걸을 만한 거점이 부족해요. 지도에서 직접 담아보세요.");
-        setBusy(false);
-        return;
-      }
-      draft.clear();
-      picks.forEach((p) => draft.toggle(p));
-      // 드래프트가 바뀌면 상위 TourExperience가 자동으로 투어 생성
-    } catch {
-      setMsg("추천에 실패했어요. 다시 시도해 주세요.");
-    } finally {
-      setBusy(false);
-    }
+    draft.clear();
+    r.picks.forEach((p) => draft.toggle(p)); // 드래프트 변경 → 상위가 자동 투어 생성
+    setBusy(false);
   }
 
   return (

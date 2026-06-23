@@ -36,6 +36,8 @@ export const dict: Record<Locale, Record<string, string>> = {
     "home.courseMeta": "약 {min}분 · {km}km · {n}곳",
     "home.deckDone": "주변 후보를 다 봤어요",
     "home.deckRefill": "다시 채우기",
+    "home.heroCta": "주변 코스 추천받기",
+    "home.heroCtaBusy": "주변 거점 찾는 중…",
 
     // 마이 — 헤더/상태
     "my.title": "마이",
@@ -238,6 +240,8 @@ export const dict: Record<Locale, Record<string, string>> = {
     "home.courseMeta": "~{min} min · {km}km · {n} stops",
     "home.deckDone": "You've seen all nearby picks",
     "home.deckRefill": "Refill",
+    "home.heroCta": "Recommend a course near me",
+    "home.heroCtaBusy": "Finding nearby stops…",
 
     "my.title": "My",
     "my.needLogin.title": "Sign in required",
