@@ -392,10 +392,10 @@ function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange:
       className="card pressable flex w-full items-center justify-between p-3.5 text-sm"
     >
       <span className="text-neutral-700">{label}</span>
-      <span className={`relative h-6 w-10 rounded-full transition-colors ${on ? "bg-navy" : "bg-neutral-300"}`}>
+      <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${on ? "bg-navy" : "bg-neutral-300"}`}>
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-            on ? "translate-x-[18px]" : "translate-x-0.5"
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+            on ? "translate-x-5" : "translate-x-0"
           }`}
         />
       </span>
