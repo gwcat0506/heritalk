@@ -10,6 +10,7 @@ import {
 import { ALL_POIS, getPoi } from "./data";
 import { nearby, distanceMeters } from "./poi";
 import { depthFor } from "./gemini";
+import { hasOpenAI, openaiTurn, type ChatMessage, type OpenAITool } from "./openai";
 import type { Citation, LatLng, POI } from "./types";
 
 const KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -91,6 +92,61 @@ const TOOLS: Tool[] = [
         },
       },
     ],
+  },
+];
+
+// 동일 4개 도구의 OpenAI(JSON Schema) 버전 — OpenAI 경로에서 사용.
+const OPENAI_TOOLS: OpenAITool[] = [
+  {
+    type: "function",
+    function: {
+      name: "find_nearby_places",
+      description:
+        "사용자의 현재 위치 주변에 있는 한국 역사·유산 거점을 찾는다. '근처/주변에 뭐 있어?' 같은 질문에 사용.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "선택: 카테고리/키워드(예: 박물관, 궁궐, 사적)" },
+          limit: { type: "number", description: "반환 개수(기본 5, 최대 8)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_heritage",
+      description: "이름/키워드로 특정 유산·거점의 정보(시대·소개·자치구)를 조회한다.",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string", description: "유산/장소 이름 또는 키워드" } },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_directions",
+      description: "특정 거점까지의 길찾기(지도) 링크를 제공한다.",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string", description: "목적지 거점 이름 또는 키워드" } },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_to_course",
+      description: "특정 거점을 사용자의 도보 코스에 추가한다. '코스에 담아줘/추가해줘'라고 할 때 사용.",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string", description: "추가할 거점 이름 또는 키워드" } },
+        required: ["name"],
+      },
+    },
   },
 ];
 
@@ -195,18 +251,18 @@ function userText(opts: AgentOpts): string {
 }
 
 export async function* runDocentAgent(opts: AgentOpts): AsyncGenerator<AgentEvent> {
-  if (!genAI) {
+  if (!genAI && !hasOpenAI) {
     yield {
       t: "delta",
       text:
         opts.language === "en"
-          ? "The AI docent needs GOOGLE_GENERATIVE_AI_API_KEY to answer."
-          : "AI 도슨트 연결이 필요해요 (GOOGLE_GENERATIVE_AI_API_KEY 설정 필요).",
+          ? "The AI docent needs an API key (OPENAI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY)."
+          : "AI 도슨트 연결이 필요해요 (OPENAI_API_KEY 또는 GOOGLE_GENERATIVE_AI_API_KEY 설정 필요).",
     };
     return;
   }
 
-  // 거점 모드면 공식 설명을 출처로 1건 먼저 방출(기존 동작 유지).
+  // 거점 모드면 공식 설명을 출처로 1건 먼저 방출(기존 동작 유지, 프로바이더 무관).
   if (opts.context && opts.placeName) {
     yield {
       t: "citations",
@@ -221,7 +277,13 @@ export async function* runDocentAgent(opts: AgentOpts): AsyncGenerator<AgentEven
     };
   }
 
-  const model = genAI.getGenerativeModel({
+  // OPENAI_API_KEY 있으면 OpenAI 경로 우선(쿼터 안정). 없으면 Gemini.
+  if (hasOpenAI) {
+    yield* runDocentAgentOpenAI(opts);
+    return;
+  }
+
+  const model = genAI!.getGenerativeModel({
     model: MODEL,
     systemInstruction: systemInstruction(opts),
     tools: TOOLS,
@@ -283,6 +345,62 @@ export async function* runDocentAgent(opts: AgentOpts): AsyncGenerator<AgentEven
     }
   } catch (e) {
     console.error("docent agent error", e);
+    yield { t: "error", text: "" };
+  }
+}
+
+// ── OpenAI 경로 — 동일 도구·systemInstruction 재사용, Chat Completions 도구호출 루프 ──
+async function* runDocentAgentOpenAI(opts: AgentOpts): AsyncGenerator<AgentEvent> {
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemInstruction(opts) },
+    ...(opts.history ?? []).slice(-8).map(
+      (h): ChatMessage => ({
+        role: h.role === "user" ? "user" : "assistant",
+        content: h.content,
+      })
+    ),
+    { role: "user", content: userText(opts) },
+  ];
+
+  try {
+    for (let step = 0; step < MAX_STEPS; step++) {
+      let content = "";
+      let toolCalls: { id: string; name: string; args: Record<string, unknown> }[] = [];
+      for await (const ev of openaiTurn(messages, OPENAI_TOOLS)) {
+        if (ev.type === "delta") {
+          if (ev.text) yield { t: "delta", text: ev.text };
+        } else {
+          content = ev.content;
+          toolCalls = ev.toolCalls;
+        }
+      }
+      if (!toolCalls.length) return; // 최종 답변 완료
+
+      // 도구호출 어시스턴트 메시지 + 각 도구 결과를 messages에 누적(OpenAI 규약).
+      messages.push({
+        role: "assistant",
+        content: content || null,
+        tool_calls: toolCalls.map((c) => ({
+          id: c.id,
+          type: "function",
+          function: { name: c.name, arguments: JSON.stringify(c.args) },
+        })),
+      });
+      for (const call of toolCalls) {
+        yield { t: "tool", name: call.name };
+        const { response, action } = execTool(call.name, call.args as ToolArgs, {
+          origin: opts.origin,
+        });
+        if (action) yield action;
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify(response),
+        });
+      }
+    }
+  } catch (e) {
+    console.error("docent agent error (openai)", e);
     yield { t: "error", text: "" };
   }
 }

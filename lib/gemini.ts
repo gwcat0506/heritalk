@@ -1,5 +1,6 @@
 // Google Gemini — 채팅 도슨트 생성 + 임베딩(text-embedding-004, 768d). 서버 전용.
 import { GoogleGenerativeAI, type GenerationConfig } from "@google/generative-ai";
+import { hasOpenAI, openaiChatJSON } from "./openai";
 
 const KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 export const hasGemini = !!KEY;
@@ -144,7 +145,7 @@ export async function generateTourStory(
   opts: { language?: string; interests?: string[] } = {}
 ): Promise<TourStory> {
   const empty: TourStory = { intro: "", stops: [], outro: "" };
-  if (!genAI || stops.length === 0) return empty;
+  if ((!genAI && !hasOpenAI) || stops.length === 0) return empty;
 
   const en = opts.language === "en";
   const depth = depthFor(level, opts.language);
@@ -191,16 +192,29 @@ ${stopInfo}
 }`;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: CHAT_MODEL,
-      generationConfig: {
-        maxOutputTokens: 3000,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
-      } as unknown as GenerationConfig,
-    });
-    const res = await model.generateContent(prompt);
-    const parsed = JSON.parse(res.response.text());
+    let raw: string;
+    if (hasOpenAI) {
+      // OpenAI JSON 모드 — 동일 프롬프트. system에 'JSON' 명시(response_format 요구사항).
+      raw = await openaiChatJSON(
+        [
+          { role: "system", content: en ? "You output only valid JSON." : "오직 유효한 JSON만 출력한다." },
+          { role: "user", content: prompt },
+        ],
+        3000
+      );
+    } else {
+      const model = genAI!.getGenerativeModel({
+        model: CHAT_MODEL,
+        generationConfig: {
+          maxOutputTokens: 3000,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 },
+        } as unknown as GenerationConfig,
+      });
+      const res = await model.generateContent(prompt);
+      raw = res.response.text();
+    }
+    const parsed = JSON.parse(raw);
     return {
       intro: typeof parsed.intro === "string" ? parsed.intro : "",
       stops: Array.isArray(parsed.stops)
