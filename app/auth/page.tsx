@@ -1,149 +1,149 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { signIn, signUp, signInWithGoogle, signInWithKakao } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
-import { Mail, Lock, User, ArrowLeft } from 'lucide-react'
+"use client";
+// 로그인 / 회원가입 — 이메일 + 구글 + 카카오. (heritalk main 차용 + web/ 디자인)
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn, signUp, signInWithGoogle, signInWithKakao } from "@/lib/auth";
+import { PrimaryButton, Wordmark } from "@/components/ui";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [nickname, setNickname] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const router = useRouter()
+  const router = useRouter();
+  const t = useT();
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // 이미 로그인된 경우 /map으로
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/map')
-    })
-  }, [router])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    setBusy(true);
     try {
-      if (mode === 'login') {
-        await signIn(email, password)
+      if (mode === "login") {
+        await signIn(email, password);
+        router.push("/mypage");
       } else {
-        await signUp(email, password, nickname)
+        const data = await signUp(email, password, nickname || email.split("@")[0]);
+        if (data.session) router.push("/mypage");
+        else setNotice(t("auth.confirmSent"));
       }
-      router.push('/map')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '오류가 발생했습니다')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.error"));
     } finally {
-      setLoading(false)
+      setBusy(false);
+    }
+  }
+
+  async function social(fn: () => Promise<void>) {
+    setError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.socialError"));
     }
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col max-w-md mx-auto px-5">
-      {/* 헤더 */}
-      <div className="flex items-center pt-12 pb-8">
-        <button onClick={() => router.push('/map')} className="text-stone-400 mr-3">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-stone-900">
-            {mode === 'login' ? '로그인' : '회원가입'}
-          </h1>
-          <p className="text-sm text-stone-400 mt-0.5">
-            {mode === 'login' ? 'HeriTalk에 오신 것을 환영합니다' : '새 계정을 만들어보세요'}
-          </p>
+    <main className="flex min-h-dvh flex-col justify-center px-6 py-10">
+      <header className="mb-8 text-center">
+        <div className="flex justify-center">
+          <Wordmark size="lg" />
         </div>
-      </div>
+        <p className="mt-2 text-sm text-neutral-600">{t("auth.tagline")}</p>
+        <p className="mt-1 text-xs text-neutral-400">
+          {mode === "login" ? t("auth.welcomeBack") : t("auth.welcomeNew")}
+        </p>
+      </header>
 
-      {/* 소셜 로그인 */}
-      <div className="space-y-3 mb-6">
+      {/* 소셜 */}
+      <div className="space-y-2">
         <button
-          onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl border border-stone-200 hover:bg-stone-50 transition-all text-sm font-medium text-stone-700"
+          onClick={() => social(signInWithGoogle)}
+          className="pressable flex w-full items-center justify-center gap-2 rounded-card border border-neutral-200 bg-white py-3 text-sm font-medium text-neutral-700"
         >
-          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-          Google로 계속하기
+          <GoogleIcon /> {t("auth.google")}
         </button>
         <button
-          onClick={signInWithKakao}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-[#FEE500] hover:bg-[#F0D800] transition-all text-sm font-medium text-[#191919]"
+          onClick={() => social(signInWithKakao)}
+          className="pressable flex w-full items-center justify-center gap-2 rounded-card py-3 text-sm font-medium text-[#191600]"
+          style={{ backgroundColor: "#FEE500" }}
         >
-          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#191919" d="M9 0C4.029 0 0 3.136 0 7c0 2.497 1.548 4.688 3.878 5.956L2.95 16.5c-.082.3.261.54.512.36L7.5 14.1c.494.059.995.09 1.5.09 4.971 0 9-3.134 9-7S13.971 0 9 0z"/></svg>
-          카카오로 계속하기
+          <KakaoIcon /> {t("auth.kakao")}
         </button>
       </div>
 
-      {/* 구분선 */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex-1 h-px bg-stone-100" />
-        <span className="text-xs text-stone-400">또는</span>
-        <div className="flex-1 h-px bg-stone-100" />
+      <div className="my-5 flex items-center gap-3 text-xs text-neutral-400">
+        <div className="h-px flex-1 bg-neutral-200" />
+        {t("auth.orEmail")}
+        <div className="h-px flex-1 bg-neutral-200" />
       </div>
 
       {/* 이메일 폼 */}
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {mode === 'signup' && (
-          <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-stone-200 focus-within:border-stone-400 transition-all">
-            <User size={16} className="text-stone-400 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="닉네임"
-              value={nickname}
-              onChange={e => setNickname(e.target.value)}
-              className="flex-1 text-sm outline-none text-stone-800 placeholder:text-stone-400 bg-transparent"
-              required
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-stone-200 focus-within:border-stone-400 transition-all">
-          <Mail size={16} className="text-stone-400 flex-shrink-0" />
+      <form onSubmit={submit} className="space-y-2.5">
+        {mode === "signup" && (
           <input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="flex-1 text-sm outline-none text-stone-800 placeholder:text-stone-400 bg-transparent"
-            required
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder={t("auth.nickname")}
+            className="w-full rounded-card border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-navy"
           />
-        </div>
-        <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-stone-200 focus-within:border-stone-400 transition-all">
-          <Lock size={16} className="text-stone-400 flex-shrink-0" />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="flex-1 text-sm outline-none text-stone-800 placeholder:text-stone-400 bg-transparent"
-            required
-          />
-        </div>
-
-        {error && (
-          <p className="text-xs text-red-500 px-1">{error}</p>
         )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3.5 bg-stone-900 text-white rounded-2xl text-sm font-semibold disabled:opacity-40 hover:bg-stone-700 transition-all mt-2"
-        >
-          {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
-        </button>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t("auth.email")}
+          className="w-full rounded-card border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-navy"
+        />
+        <input
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={t("auth.password")}
+          className="w-full rounded-card border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-navy"
+        />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        {notice && <p className="text-xs text-ai">{notice}</p>}
+        <PrimaryButton type="submit" disabled={busy}>
+          {busy ? t("auth.processing") : mode === "login" ? t("common.login") : t("auth.signup")}
+        </PrimaryButton>
       </form>
 
-      {/* 모드 전환 */}
-      <div className="text-center mt-6">
-        <span className="text-sm text-stone-400">
-          {mode === 'login' ? '계정이 없으신가요? ' : '이미 계정이 있으신가요? '}
-        </span>
-        <button
-          onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-          className="text-sm text-amber-600 font-medium"
-        >
-          {mode === 'login' ? '회원가입' : '로그인'}
-        </button>
-      </div>
-    </div>
-  )
+      <button
+        onClick={() => {
+          setMode(mode === "login" ? "signup" : "login");
+          setError(null);
+          setNotice(null);
+        }}
+        className="pressable mt-5 text-center text-sm text-neutral-500"
+      >
+        {mode === "login" ? t("auth.toSignup") : t("auth.toLogin")}
+      </button>
+    </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
+      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+      <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+    </svg>
+  );
+}
+
+function KakaoIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden fill="#191600">
+      <path d="M12 3C6.48 3 2 6.58 2 11c0 2.84 1.94 5.33 4.86 6.73-.21.77-.78 2.85-.9 3.3-.14.55.2.55.43.4.18-.12 2.86-1.94 4.02-2.73.52.07 1.05.1 1.59.1 5.52 0 10-3.58 10-8C22 6.58 17.52 3 12 3z" />
+    </svg>
+  );
 }

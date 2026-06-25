@@ -1,34 +1,38 @@
 {
-  "name": "heritalk",
+  "name": "kcisa-walk-guide-web",
   "version": "0.1.0",
   "private": true,
+  "description": "도보 여행 역사 AI 가이드 웹앱 (KCISA 2026) — 토이 RouteAgentToy 웹 이식 + 채팅 도슨트",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:setup": "npx tsx scripts/db-setup.ts",
-    "data:ingest": "npx tsx scripts/ingest.ts"
+    "seed:places": "bun run scripts/seed-places.ts",
+    "seed:passages": "bun run scripts/seed-passages.ts",
+    "seed:images": "bun run scripts/seed-images.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "@supabase/supabase-js": "^2.107.0",
-    "clsx": "^2.1.1",
-    "fast-xml-parser": "^4.5.6",
-    "lucide-react": "^0.514.0",
-    "next": "^16.2.7",
-    "openai": "^4.104.0",
+    "@google/generative-ai": "^0.21.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "fast-xml-parser": "^5.9.2",
+    "lucide-react": "^1.21.0",
+    "motion": "^12.40.0",
+    "next": "^15.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.3.0"
+    "zustand": "^5.0.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "tsx": "^4.19.3",
-    "typescript": "^5"
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.14.0",
+    "eslint-config-next": "^15.0.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3"
   }
 }
