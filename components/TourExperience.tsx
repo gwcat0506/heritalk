@@ -549,7 +549,7 @@ function TourPlayer({
                   {nextStop ? (
                     <>
                       <p className="text-[11px] text-white/70">{t("tour.next")}</p>
-                      <p className="truncate text-base font-bold">
+                      <p className="line-clamp-2 text-base font-bold leading-tight">
                         {nextStop.order}. {dname(nextStop, locale)}
                       </p>
                     </>
@@ -608,7 +608,9 @@ function TourPlayer({
             />
           </div>
           <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <span className="shrink-0">배속 {speed}배</span>
+            <span className="shrink-0 rounded-chip bg-black/5 px-2 py-0.5 font-semibold text-navy tabular-nums">
+              배속 {speed}배
+            </span>
             <input
               type="range"
               min={1}

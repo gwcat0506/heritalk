@@ -101,10 +101,10 @@ export default function RouteResultPage() {
 
       {route && (
         <>
-          <div className="mb-3">
+          <div className="rise mb-3">
             <KakaoMap markers={markers} paths={route.paths} height={300} />
           </div>
-          <div className="mb-3">
+          <div className="rise mb-3" style={{ animationDelay: "60ms" }}>
             <RouteSummary
               distanceM={route.totalDistance}
               timeSec={route.totalTravelTime}
@@ -112,7 +112,7 @@ export default function RouteResultPage() {
             />
           </div>
 
-          <ol className="mb-4 space-y-2">
+          <ol className="rise mb-4 space-y-2" style={{ animationDelay: "120ms" }}>
             {route.stops.map((s) => (
               <li key={s.poi.id} className="flex items-center gap-3 card p-2.5">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-navy text-xs font-bold text-white">
@@ -138,7 +138,8 @@ export default function RouteResultPage() {
 
           <button
             onClick={() => router.push("/docent?tab=tour")}
-            className="pressable mb-2 flex w-full items-center justify-center gap-2 rounded-card bg-ai py-3 text-sm font-semibold text-white"
+            style={{ animationDelay: "180ms" }}
+            className="rise pressable mb-2 flex w-full items-center justify-center gap-2 rounded-card bg-ai py-3 text-sm font-semibold text-white"
           >
             <Headphones className="h-4 w-4" aria-hidden />
             {t("result.walkWithDocent")}

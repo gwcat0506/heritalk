@@ -10,7 +10,7 @@ import { useCourseDraft } from "@/stores/useCourseDraft";
 import { POIThumbnail, CategoryChip, Wordmark, Skeleton } from "@/components/ui";
 import { useT, useLocale } from "@/lib/i18n/LocaleProvider";
 import { dname } from "@/lib/i18n/name";
-import { MapPin, Navigation, MessagesSquare, Route, ChevronRight } from "lucide-react";
+import { MapPin, Navigation, MessagesSquare, Route, ChevronRight, Loader2 } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { useUserLocation } from "@/lib/useUserLocation";
 import MapSheet from "@/components/MapSheet";
@@ -131,7 +131,11 @@ export default function HomePage() {
               disabled={recBusy}
               className="pressable flex w-full items-center justify-center gap-2 rounded-card bg-white py-3.5 text-center font-semibold text-navy shadow-card disabled:opacity-70"
             >
-              <Navigation className="h-5 w-5" aria-hidden />
+              {recBusy ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              ) : (
+                <Navigation className="h-5 w-5" aria-hidden />
+              )}
               {recBusy ? t("home.heroCtaBusy") : t("home.heroCta")}
             </button>
           </div>
