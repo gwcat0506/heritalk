@@ -8,7 +8,8 @@ import { buildWalkablePool } from "@/lib/heritage-pool";
 import { recommendNearbyCourse } from "@/lib/recommendCourse";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { POIThumbnail, CategoryChip, Wordmark, Skeleton } from "@/components/ui";
-import { useT } from "@/lib/i18n/LocaleProvider";
+import { useT, useLocale } from "@/lib/i18n/LocaleProvider";
+import { dname } from "@/lib/i18n/name";
 import { MapPin, Navigation, MessagesSquare, Route, ChevronRight } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { useUserLocation } from "@/lib/useUserLocation";
@@ -20,6 +21,7 @@ const SEOUL = { lat: 37.5759, lng: 126.9769 };
 
 export default function HomePage() {
   const t = useT();
+  const { locale } = useLocale();
   const [mapOpen, setMapOpen] = useState(false);
   const [pool, setPool] = useState<POI[]>([]);
   const [recBusy, setRecBusy] = useState(false);
@@ -38,8 +40,11 @@ export default function HomePage() {
   const ready = pool.length > 0;
 
   const mapPins = useMemo(
-    () => (ready ? nearby(pool, SEOUL, 50_000, 8).map((poi) => ({ poi })) : []),
-    [pool, ready]
+    () =>
+      ready
+        ? nearby(pool, SEOUL, 50_000, 8).map((poi) => ({ poi: { ...poi, name: dname(poi, locale) } }))
+        : [],
+    [pool, ready, locale]
   );
   const area = useMemo(
     () => (ready ? nearby(pool, center, 50_000, 1)[0]?.district : undefined),
@@ -164,7 +169,7 @@ export default function HomePage() {
                 <POIThumbnail poi={p} className="h-28 w-full rounded-card" />
                 <div className="mt-1.5">
                   <CategoryChip category={p.category} />
-                  <p className="mt-1 line-clamp-1 text-sm font-medium text-neutral-800">{p.name}</p>
+                  <p className="mt-1 line-clamp-1 text-sm font-medium text-neutral-800">{dname(p, locale)}</p>
                   <p className="line-clamp-1 text-xs text-neutral-400">{p.district}</p>
                 </div>
               </Link>

@@ -6,7 +6,8 @@ import { Reorder, useDragControls } from "motion/react";
 import { useRef, useState } from "react";
 import { GripVertical, Trash2 } from "lucide-react";
 import { POIThumbnail, CategoryChip } from "@/components/ui";
-import { useT } from "@/lib/i18n/LocaleProvider";
+import { useT, useLocale } from "@/lib/i18n/LocaleProvider";
+import { dname } from "@/lib/i18n/name";
 import type { POI } from "@/lib/types";
 
 const DEL_THRESHOLD = -64;
@@ -39,6 +40,7 @@ function StopRow({
   onRemove: (id: string) => void;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const controls = useDragControls();
 
   // 가로 스와이프(삭제) 상태 — 세로 스크롤/세로 드래그와 분리하기 위해 축 잠금.
@@ -128,7 +130,7 @@ function StopRow({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <p className="line-clamp-1 text-sm font-medium">{poi.name}</p>
+              <p className="line-clamp-1 text-sm font-medium">{dname(poi, locale)}</p>
               {index === 0 && (
                 <span className="chip shrink-0 bg-accent/15 text-accent">
                   {t("course.startBadge")}

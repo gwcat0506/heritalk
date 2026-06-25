@@ -10,9 +10,10 @@ interface Props {
   path: PathPoint[];
   stops: { lat: number; lng: number; name: string }[];
   pos: LatLng;
+  fill?: boolean; // true면 부모(relative)를 absolute inset-0로 채움(히어로용)
 }
 
-export default function TourMap({ path, stops, pos }: Props) {
+export default function TourMap({ path, stops, pos, fill = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const meRef = useRef<any>(null);
@@ -80,5 +81,14 @@ export default function TourMap({ path, stops, pos }: Props) {
     }
   }, [pos.lat, pos.lng]);
 
-  return <div ref={ref} className="h-[220px] w-full rounded-card border border-neutral-200" />;
+  return (
+    <div
+      ref={ref}
+      className={
+        fill
+          ? "absolute inset-0"
+          : "h-[220px] w-full rounded-card border border-neutral-200"
+      }
+    />
+  );
 }

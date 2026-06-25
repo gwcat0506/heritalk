@@ -2,10 +2,14 @@
 
 export type LatLng = { lat: number; lng: number };
 
+/** 현위치 출발용 합성 거점 id(클라/서버 공용 식별자). */
+export const ORIGIN_ID = "__origin__";
+
 /** 서울 역사 거점(박물관·기념관 / 국가지정 사적). seoul_pois.json 레코드와 1:1. */
 export interface POI {
   id: string;
   name: string;
+  nameEn?: string; // 영문명(있으면 en 로케일에서 사용)
   category: string; // "박물관" | "사적"
   district: string; // 자치구
   latitude: number;

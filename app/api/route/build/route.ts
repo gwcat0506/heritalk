@@ -1,20 +1,24 @@
 // 서버: 코스 거점 묶음 → 도보 루트(TMap). 클라이언트가 POI 객체(좌표 포함)를 보낸다(KHS·정적 혼합 지원).
 import { NextResponse } from "next/server";
-import { buildRoute, NotEnoughStopsError } from "@/lib/routeEngine";
-import type { POI } from "@/lib/types";
+import { buildRoute, NotEnoughStopsError, makeOriginPOI } from "@/lib/routeEngine";
+import type { LatLng, POI } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { startId, pois } = (await req.json()) as {
+    const { startId, pois, startOrigin } = (await req.json()) as {
       startId?: string;
       pois: POI[];
+      startOrigin?: LatLng;
     };
     if (!Array.isArray(pois) || pois.length < 1) {
       return NextResponse.json({ error: "거점이 필요합니다." }, { status: 400 });
     }
-    const start = (startId && pois.find((p) => p.id === startId)) || pois[0];
+    // 현위치 출발 시 합성 origin을 시작점으로(거점 앞에 prepend).
+    const start = startOrigin
+      ? makeOriginPOI(startOrigin)
+      : (startId && pois.find((p) => p.id === startId)) || pois[0];
 
     const t0 = Date.now();
     const route = await buildRoute(start, pois);

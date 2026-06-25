@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { MapPin, RefreshCw } from "lucide-react";
 import { getSeoulHeritageList, type KhsHeritage } from "@/lib/khs";
-import { getServerT } from "@/lib/i18n/server";
+import { getServerT, getServerLocale } from "@/lib/i18n/server";
+import khsNamesEn from "@/data/khs_names_en.json";
+
+const KHS_EN = khsNamesEn as Record<string, string>;
 
 export const dynamic = "force-dynamic"; // 외부 API는 빌드가 아닌 요청 시 호출
 
@@ -19,6 +22,7 @@ function desigColor(d: string): string {
 
 export default async function HeritageLivePage() {
   const t = await getServerT();
+  const locale = await getServerLocale();
   let items: KhsHeritage[] = [];
   let error: string | null = null;
   try {
@@ -80,7 +84,7 @@ export default async function HeritageLivePage() {
               {h.designation.slice(0, 2)}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-neutral-900">{h.name}</p>
+              <p className="truncate text-sm font-medium text-neutral-900">{locale === "en" ? (KHS_EN[h.name] ?? h.name) : h.name}</p>
               <p className="mt-0.5 flex items-center gap-1 text-xs text-neutral-400">
                 <MapPin className="h-3 w-3" aria-hidden />
                 {h.district}

@@ -10,7 +10,8 @@ import BackButton from "@/components/BackButton";
 import BookmarkButton from "@/components/BookmarkButton";
 import ExpandableText from "@/components/ExpandableText";
 import { POIThumbnail, CategoryChip } from "@/components/ui";
-import { getServerT } from "@/lib/i18n/server";
+import { getServerT, getServerLocale } from "@/lib/i18n/server";
+import { dname } from "@/lib/i18n/name";
 import PlaceActions from "./PlaceActions";
 import { coord, type POI } from "@/lib/types";
 
@@ -31,6 +32,7 @@ export default async function PlaceDetailPage({
   if (!poi) notFound();
 
   const t = await getServerT();
+  const locale = await getServerLocale();
   const hex = categoryHex(poi.category);
 
   // 가까운 거점(정적 116 — 사진 풍부) → 상세 하단 채우기 + 회유 동선.
@@ -63,7 +65,7 @@ export default async function PlaceDetailPage({
           <span className="chip text-white" style={{ backgroundColor: hex }}>
             {poi.category}
           </span>
-          <h1 className="mt-1 text-2xl font-bold text-white drop-shadow">{poi.name}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-white drop-shadow">{dname(poi, locale)}</h1>
         </div>
       </div>
 
@@ -119,7 +121,7 @@ export default async function PlaceDetailPage({
                   <div className="mt-1.5">
                     <CategoryChip category={n.category} />
                     <p className="mt-1 line-clamp-1 text-sm font-medium text-neutral-800">
-                      {n.name}
+                      {dname(n, locale)}
                     </p>
                     <p className="line-clamp-1 text-xs text-neutral-400">
                       {n.district}

@@ -12,6 +12,7 @@ export interface TourStop {
   order: number;
   id: string;
   name: string;
+  nameEn?: string | null;
   designation: string;
   era: string;
   address: string;

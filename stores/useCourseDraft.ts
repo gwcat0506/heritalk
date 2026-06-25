@@ -4,9 +4,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { POI } from "@/lib/types";
 
+type StartMode = "first" | "me"; // 출발지: 첫 거점 / 내 위치
+
 interface CourseDraftState {
   pois: POI[];
   startId: string | null; // 맨 위(시작점)
+  startMode: StartMode;
+  setStartMode: (m: StartMode) => void;
   toggle: (poi: POI) => void;
   contains: (id: string) => boolean;
   remove: (id: string) => void;
@@ -22,6 +26,8 @@ export const useCourseDraft = create<CourseDraftState>()(
     (set, get) => ({
       pois: [],
       startId: null,
+      startMode: "first",
+      setStartMode: (m) => set({ startMode: m }),
       toggle: (poi) =>
         set((s) => {
           const exists = s.pois.some((p) => p.id === poi.id);

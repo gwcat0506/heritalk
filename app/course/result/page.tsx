@@ -4,17 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { useSaved } from "@/stores/useSaved";
+import { useUserLocation } from "@/lib/useUserLocation";
 import KakaoMap, { type MapMarker } from "@/components/KakaoMap";
 import { RouteSummary, POIThumbnail, PrimaryButton, Skeleton } from "@/components/ui";
-import { useT } from "@/lib/i18n/LocaleProvider";
+import { useT, useLocale } from "@/lib/i18n/LocaleProvider";
+import { dname } from "@/lib/i18n/name";
 import { ChevronLeft, Headphones, Check, RefreshCw } from "lucide-react";
-import type { Route } from "@/lib/types";
+import { ORIGIN_ID, type Route } from "@/lib/types";
 
 export default function RouteResultPage() {
-  const { pois, startId } = useCourseDraft();
+  const { pois, startId, startMode } = useCourseDraft();
   const { add, contains } = useSaved();
+  const { locate } = useUserLocation(undefined, { auto: false });
   const router = useRouter();
   const t = useT();
+  const { locale } = useLocale();
   const [route, setRoute] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,27 +33,37 @@ export default function RouteResultPage() {
     }
     setError(null);
     setLoading(true);
-    fetch("/api/route/build", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        startId: startId ?? pois[0].id,
-        pois,
-      }),
-    })
-      .then(async (r) => {
+    (async () => {
+      // 출발지=내 위치면 좌표 확보(거부/실패 시 첫 거점으로 폴백).
+      const startOrigin = startMode === "me" ? await locate() : null;
+      try {
+        const r = await fetch("/api/route/build", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startId: startId ?? pois[0].id,
+            pois,
+            startOrigin: startOrigin ?? undefined,
+          }),
+        });
         const json = await r.json();
         if (!r.ok) throw new Error(json.error ?? "루트 생성 실패");
         setRoute(json.route);
         setLatency(json.latencyMs ?? null);
-      })
-      .catch((e) => setError(String(e.message ?? e)))
-      .finally(() => setLoading(false));
+      } catch (e) {
+        setError(String((e as Error).message ?? e));
+      } finally {
+        setLoading(false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nonce]);
 
   const markers: MapMarker[] =
-    route?.stops.map((s) => ({ poi: s.poi, order: s.order })) ?? [];
+    route?.stops.map((s) => ({
+      poi: s.poi.id === ORIGIN_ID ? { ...s.poi, name: t("course.originName") } : { ...s.poi, name: dname(s.poi, locale) },
+      order: s.order,
+    })) ?? [];
 
   return (
     <main className="px-4 pt-6">
@@ -106,7 +120,9 @@ export default function RouteResultPage() {
                 </span>
                 <POIThumbnail poi={s.poi} className="h-12 w-12 rounded-chip" />
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-1 text-sm font-medium">{s.poi.name}</p>
+                  <p className="line-clamp-1 text-sm font-medium">
+                    {s.poi.id === ORIGIN_ID ? t("course.originName") : dname(s.poi, locale)}
+                  </p>
                   <p className="text-xs text-neutral-500">
                     {s.order === 0
                       ? t("result.startPoint")

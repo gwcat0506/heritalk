@@ -9,15 +9,30 @@ import { walkEstimate } from "@/lib/poi";
 import { listBookmarks, toggleBookmark, type BookmarkRow } from "@/lib/bookmarks";
 import { listSavedTours, deleteSavedTour, type SavedTourRow } from "@/lib/courses";
 import { POIThumbnail, EmptyState } from "@/components/ui";
-import { useT } from "@/lib/i18n/LocaleProvider";
+import { useT, useLocale } from "@/lib/i18n/LocaleProvider";
+import { dname } from "@/lib/i18n/name";
+import { getPoi } from "@/lib/data";
+import khsNamesEn from "@/data/khs_names_en.json";
 import { Heart, Headphones, Bookmark } from "lucide-react";
 import type { POI } from "@/lib/types";
+
+const KHS_EN = khsNamesEn as Record<string, string>;
 
 export default function SavedPage() {
   const { courses, remove } = useSaved();
   const draft = useCourseDraft();
   const router = useRouter();
   const t = useT();
+  const { locale } = useLocale();
+
+  // 저장 시점의 한국어 이름을 표시 시점 locale로 변환(정적=POI.nameEn, KHS=영문맵).
+  function bookmarkName(b: BookmarkRow): string {
+    const ko = b.heritage_name ?? "";
+    if (locale !== "en") return ko || t("saved.noName");
+    if (b.heritage_id.includes("_")) return KHS_EN[ko] || ko || t("saved.noName");
+    const p = getPoi(b.heritage_id);
+    return (p ? dname(p, "en") : ko) || t("saved.noName");
+  }
 
   const [bookmarks, setBookmarks] = useState<BookmarkRow[]>([]);
   const [tours, setTours] = useState<SavedTourRow[]>([]);
@@ -83,7 +98,7 @@ export default function SavedPage() {
                   href={`/place/${b.heritage_id}`}
                   className="pressable min-w-0 flex-1 truncate text-sm font-medium text-neutral-800"
                 >
-                  {b.heritage_name ?? t("saved.noName")}
+                  {bookmarkName(b)}
                 </Link>
                 <button
                   onClick={() => unbookmark(b)}

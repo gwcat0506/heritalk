@@ -2,6 +2,9 @@
 import { createAdmin } from "./supabase/admin";
 import { getSeoulHeritageDetail, getSeoulHeritageImage, type KhsHeritage } from "./khs";
 import type { POI } from "./types";
+import khsNamesEn from "@/data/khs_names_en.json";
+
+const KHS_EN = khsNamesEn as Record<string, string>;
 
 /** KHS id 형식(`kdcd_asno`)이면 true, 정적 POI id면 false. */
 export const isKhsId = (id: string) => id.includes("_");
@@ -11,6 +14,7 @@ export function khsToPoi(k: KhsHeritage): POI {
   return {
     id: k.id,
     name: k.name,
+    nameEn: KHS_EN[k.name],
     category: k.designation || "국가유산",
     district: k.district || "",
     latitude: k.lat,

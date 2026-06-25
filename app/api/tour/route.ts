@@ -1,6 +1,6 @@
 // 서버: 루트 에이전트 — 코스 거점 → 도보 루트(재사용) + AI 투어 도슨트 스토리(Gemini JSON).
 import { NextResponse } from "next/server";
-import { buildRoute, NotEnoughStopsError } from "@/lib/routeEngine";
+import { buildRoute, NotEnoughStopsError, makeOriginPOI, ORIGIN_ID } from "@/lib/routeEngine";
 import { attachDistances, walkMinutes } from "@/lib/tour/route";
 import { generateTourStory, type TourStopInput } from "@/lib/gemini";
 import { isKhsId, getPlaceCached } from "@/lib/places";
@@ -11,22 +11,26 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { pois, startId, level = "general", language, interests } =
+    const { pois, startId, level = "general", language, interests, startOrigin } =
       (await req.json()) as {
         pois: POI[];
         startId?: string;
         level?: string;
         language?: string;
         interests?: string[];
+        startOrigin?: LatLng;
       };
     if (!Array.isArray(pois) || pois.length < 2) {
       return NextResponse.json({ error: "거점이 2곳 이상 필요합니다." }, { status: 400 });
     }
-    const start = (startId && pois.find((p) => p.id === startId)) || pois[0];
+    // 현위치 출발 시 합성 origin을 시작점으로(경로는 내 위치부터, 내레이션은 실제 거점만).
+    const start = startOrigin
+      ? makeOriginPOI(startOrigin)
+      : (startId && pois.find((p) => p.id === startId)) || pois[0];
 
     // 1) 방문 순서 + 경로(TMap/직선) + 누적거리 — 기존 엔진 재사용
     const route = await buildRoute(start, pois);
-    const ordered = route.stops.map((s) => s.poi);
+    const ordered = route.stops.map((s) => s.poi).filter((p) => p.id !== ORIGIN_ID);
 
     // 2) 경로 평탄화 → PathPoint + 정류지 누적거리(자체 일관: 미리보기 이동점과 동일 기준)
     const coords: LatLng[] = route.paths.flat();
@@ -68,6 +72,7 @@ export async function POST(req: Request) {
         order: i + 1,
         id: p.id,
         name: d.name,
+        nameEn: p.nameEn ?? null,
         designation: d.designation,
         era: d.era,
         address: d.address,
@@ -82,7 +87,7 @@ export async function POST(req: Request) {
 
     // 4) 스토리텔링(Gemini JSON)
     const storyInput: TourStopInput[] = stopMeta.map((s) => ({
-      name: s.name,
+      name: language === "en" && s.nameEn ? s.nameEn : s.name,
       designation: s.designation,
       era: s.era,
       description: s.description,
@@ -100,6 +105,7 @@ export async function POST(req: Request) {
         order: s.order,
         id: s.id,
         name: s.name,
+        nameEn: s.nameEn,
         designation: s.designation,
         era: s.era,
         address: s.address,

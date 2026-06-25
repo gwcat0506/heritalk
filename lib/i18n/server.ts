@@ -2,6 +2,11 @@
 import { cookies } from "next/headers";
 import { dict, type Locale } from "./dict";
 
+export async function getServerLocale(): Promise<Locale> {
+  const c = await cookies();
+  return c.get("locale")?.value === "en" ? "en" : "ko";
+}
+
 export async function getServerT() {
   const c = await cookies();
   const locale: Locale = c.get("locale")?.value === "en" ? "en" : "ko";

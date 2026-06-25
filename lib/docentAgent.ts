@@ -14,7 +14,7 @@ import type { Citation, LatLng, POI } from "./types";
 
 const KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 const genAI = KEY ? new GoogleGenerativeAI(KEY) : null;
-const MODEL = "gemini-2.5-flash";
+const MODEL = process.env.DOCENT_MODEL || "gemini-2.5-flash";
 const MAX_STEPS = 4;
 const SEOUL: LatLng = { lat: 37.5759, lng: 126.9769 };
 
@@ -231,12 +231,22 @@ export async function* runDocentAgent(opts: AgentOpts): AsyncGenerator<AgentEven
     } as unknown as GenerationConfig,
   });
 
-  const history: Content[] = (opts.history ?? []).slice(-8).map((h) => ({
+  const mapped: Content[] = (opts.history ?? []).slice(-8).map((h) => ({
     role: h.role === "user" ? "user" : "model",
     parts: [{ text: h.content }],
   }));
-  // Gemini는 history의 첫 턴이 반드시 'user'여야 함 → 인사말 등 선행 model 턴 제거.
-  while (history.length && history[0].role !== "user") history.shift();
+  // Gemini는 history가 (a) 'user'로 시작하고 (b) user/model 엄격 교대여야 함.
+  // 도구 사용 시 보조 노트+답변처럼 연속 같은 role이 생길 수 있어 → 인접 동일 role 병합.
+  const history: Content[] = [];
+  for (const c of mapped) {
+    const last = history[history.length - 1];
+    if (last && last.role === c.role) {
+      last.parts = [{ text: `${(last.parts[0] as { text: string }).text}\n${(c.parts[0] as { text: string }).text}` }];
+    } else {
+      history.push({ role: c.role, parts: [{ text: (c.parts[0] as { text: string }).text }] });
+    }
+  }
+  while (history.length && history[0].role !== "user") history.shift(); // 선행 model 제거
   const chat = model.startChat({ history });
 
   // 첫 메시지: grounding 컨텍스트 + 질문

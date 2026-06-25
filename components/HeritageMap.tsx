@@ -10,10 +10,17 @@ import { useCourseDraft } from "@/stores/useCourseDraft";
 import { getUser } from "@/lib/auth";
 import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
 import { categoryHex, isHeritage } from "@/lib/categories";
+import { ALL_POIS } from "@/lib/data";
+import { isKhsId } from "@/lib/places";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
+import { dname } from "@/lib/i18n/name";
 import type { POI } from "@/lib/types";
+
+const MUSEUMS = ALL_POIS.filter((p) => p.category === "박물관");
 
 const FILTERS = [
   "전체",
+  "박물관",
   "사적",
   "국보",
   "보물",
@@ -38,6 +45,7 @@ interface Detail {
 }
 
 export default function HeritageMap() {
+  const { locale } = useLocale();
   const [all, setAll] = useState<POI[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("전체");
@@ -68,7 +76,14 @@ export default function HeritageMap() {
   useEffect(() => {
     fetch("/api/heritage/seoul")
       .then((r) => r.json())
-      .then((d) => setAll(d.places ?? []))
+      .then((d) => {
+        // 정적 박물관(42) + KHS 라이브. 같은 좌표 중복은 박물관 우선.
+        const khs: POI[] = (d.places ?? []) as POI[];
+        const museumKeys = new Set(MUSEUMS.map(coordKey));
+        const sites = khs.filter((p) => !museumKeys.has(coordKey(p)));
+        setAll([...MUSEUMS, ...sites]);
+      })
+      .catch(() => setAll(MUSEUMS))
       .finally(() => setLoading(false));
   }, []);
 
@@ -94,8 +109,12 @@ export default function HeritageMap() {
   }, [filtered]);
 
   const markers = useMemo(
-    () => [...groups.values()].map((g) => ({ poi: g[0], count: g.length })),
-    [groups]
+    () =>
+      [...groups.values()].map((g) => ({
+        poi: { ...g[0], name: dname(g[0], locale) },
+        count: g.length,
+      })),
+    [groups, locale]
   );
 
   function onMarker(poi: POI) {
@@ -109,12 +128,31 @@ export default function HeritageMap() {
       setDetail(null);
       return;
     }
+    // 정적 박물관(비 KHS id)은 로컬 POI로 상세 구성, KHS는 API 조회.
+    if (!isKhsId(detailId)) {
+      const p = all.find((x) => x.id === detailId);
+      setDetail(
+        p
+          ? {
+              id: p.id,
+              name: p.name,
+              designation: p.category,
+              district: p.district,
+              address: p.address,
+              era: p.era ?? undefined,
+              description: p.shortDesc,
+              imageUrl: p.imageUrl ?? undefined,
+            }
+          : null
+      );
+      return;
+    }
     setDetailLoading(true);
     fetch(`/api/place?id=${encodeURIComponent(detailId)}`)
       .then((r) => r.json())
       .then((d) => setDetail(d.place ?? null))
       .finally(() => setDetailLoading(false));
-  }, [detailId]);
+  }, [detailId, all]);
 
   // 현재 상세 거점의 POI(좌표·코스담기용) + 즐겨찾기 상태 초기화
   const detailPoi = useMemo(
@@ -283,7 +321,7 @@ export default function HeritageMap() {
                     className="pressable flex w-full items-center gap-2 rounded-chip p-2 text-left hover:bg-black/5"
                   >
                     <CategoryChip category={p.category} />
-                    <span className="line-clamp-1 text-sm text-neutral-800">{p.name}</span>
+                    <span className="line-clamp-1 text-sm text-neutral-800">{dname(p, locale)}</span>
                   </button>
                 ))}
               </div>
@@ -316,7 +354,7 @@ export default function HeritageMap() {
                 )}
                 <div className="flex items-center gap-2">
                   <CategoryChip category={detail.designation ?? ""} />
-                  <span className="font-semibold text-neutral-900">{detail.name}</span>
+                  <span className="font-semibold text-neutral-900">{detailPoi ? dname(detailPoi, locale) : detail.name}</span>
                 </div>
                 <div className="mt-1 space-y-0.5 text-xs text-neutral-500">
                   {detail.era && <p>시대 · {detail.era}</p>}

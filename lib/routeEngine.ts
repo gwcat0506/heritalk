@@ -1,11 +1,27 @@
 // 토이 RouteEngine.swift 이식 (서버 전용 — TMap 키 보호).
 // ① nearest-neighbor 방문 순서 → ② 구간별 TMap 보행자 경로 → ③ 누적 집계.
 // 구간 실패 시 직선거리×1.3 ÷ 1.3 m/s 폴백(루트가 끊기지 않도록).
-import type { POI, Route, RouteStop, LatLng } from "./types";
+import { ORIGIN_ID, type POI, type Route, type RouteStop, type LatLng } from "./types";
 import { distanceMeters } from "./poi";
 import { walkSegment } from "./tmap";
 
+export { ORIGIN_ID };
+
 const toLatLng = (p: POI): LatLng => ({ lat: p.latitude, lng: p.longitude });
+
+/** 현위치 출발용 합성 거점 POI(내레이션·표시에서 식별). */
+export function makeOriginPOI(o: LatLng): POI {
+  return {
+    id: ORIGIN_ID,
+    name: "내 위치",
+    category: "",
+    district: "",
+    latitude: o.lat,
+    longitude: o.lng,
+    address: "",
+    shortDesc: "",
+  };
+}
 
 /** nearest-neighbor 방문 순서. (RouteEngine.nearestNeighborOrder) */
 function nearestNeighborOrder(start: POI, pois: POI[]): POI[] {

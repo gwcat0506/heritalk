@@ -10,7 +10,7 @@ import CourseStops from "@/components/CourseStops";
 import { useT } from "@/lib/i18n/LocaleProvider";
 
 export default function CoursePage() {
-  const { pois, remove, reorder, clear } = useCourseDraft();
+  const { pois, remove, reorder, clear, startMode, setStartMode } = useCourseDraft();
   const router = useRouter();
   const t = useT();
   const est = walkEstimate(pois);
@@ -56,6 +56,23 @@ export default function CoursePage() {
         </div>
       ) : (
         <>
+          {/* 출발지 선택: 첫 거점 / 내 위치 */}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-neutral-500">{t("course.startLabel")}</span>
+            <div className="flex gap-1 rounded-chip bg-black/5 p-0.5 text-xs font-semibold">
+              {(["first", "me"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setStartMode(m)}
+                  className={`pressable rounded-chip px-3 py-1 ${
+                    startMode === m ? "bg-white text-navy shadow-card" : "text-neutral-500"
+                  }`}
+                >
+                  {m === "first" ? t("course.startFirst") : t("course.startHere")}
+                </button>
+              ))}
+            </div>
+          </div>
           <p className="mb-2 px-1 text-xs text-neutral-400">{t("course.editHint")}</p>
           <CourseStops pois={pois} onReorder={reorder} onRemove={remove} />
         </>

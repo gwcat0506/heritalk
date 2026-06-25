@@ -16,6 +16,7 @@ import {
 import { useCourseDraft } from "@/stores/useCourseDraft";
 import { getUser } from "@/lib/auth";
 import { useLocale, useT } from "@/lib/i18n/LocaleProvider";
+import { dname } from "@/lib/i18n/name";
 import { distanceMeters } from "@/lib/poi";
 import { recommendNearbyCourse } from "@/lib/recommendCourse";
 import { readDocentStream, toolLabelKey } from "@/lib/docentStream";
@@ -37,7 +38,9 @@ const ARRIVE_M = 30;
 export default function TourExperience({ source }: { source: TourSource }) {
   const draftPois = useCourseDraft((s) => s.pois);
   const startId = useCourseDraft((s) => s.startId);
+  const startMode = useCourseDraft((s) => s.startMode);
   const { locale } = useLocale();
+  const { locate } = useUserLocation(undefined, { auto: false });
   const t = useT();
   const [tour, setTour] = useState<TourData | null>(null);
   const [level, setLevel] = useState("general");
@@ -50,9 +53,9 @@ export default function TourExperience({ source }: { source: TourSource }) {
     if (source.kind === "saved") return `saved:${source.id}:${nonce}`;
     if (source.kind === "pois")
       return `pois:${source.pois.map((p) => p.id).join(",")}:${nonce}`;
-    return `draft:${draftPois.map((p) => p.id).join(",")}:${nonce}`;
+    return `draft:${draftPois.map((p) => p.id).join(",")}:${startMode}:${nonce}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, draftPois, nonce]);
+  }, [source, draftPois, startMode, nonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,11 +81,20 @@ export default function TourExperience({ source }: { source: TourSource }) {
         ? (u!.user_metadata!.interests as string[])
         : undefined;
       setLevel(lv);
+      // 출발지=내 위치면 좌표 확보(거부/실패 시 첫 거점 폴백).
+      const startOrigin = startMode === "me" ? await locate() : null;
       try {
         const res = await fetch("/api/tour", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pois, startId, level: lv, language: locale, interests }),
+          body: JSON.stringify({
+            pois,
+            startId,
+            level: lv,
+            language: locale,
+            interests,
+            startOrigin: startOrigin ?? undefined,
+          }),
         });
         const data = (await res.json()) as TourData & { error?: string };
         if (cancelled) return;
@@ -288,7 +300,7 @@ function TourPlayer({
     (p: LatLng) => {
       tour.stops.forEach((s, i) => {
         const d = distanceMeters(p, { lat: s.lat, lng: s.lng });
-        const segs = s.segments.length ? s.segments : [t("tour.near", { name: s.name })];
+        const segs = s.segments.length ? s.segments : [t("tour.near", { name: dname(s, locale) })];
         if (d < APPROACH_M) {
           const frac = Math.min(1, Math.max(0, (APPROACH_M - d) / (APPROACH_M - ARRIVE_M)));
           const target = Math.min(segs.length, Math.max(1, Math.ceil(frac * segs.length)));
@@ -297,7 +309,7 @@ function TourPlayer({
             push({
               kind: "docent",
               text: segs[j],
-              title: j === 0 ? t("tour.approaching", { n: s.order, name: s.name }) : undefined,
+              title: j === 0 ? t("tour.approaching", { n: s.order, name: dname(s, locale) }) : undefined,
             });
             revealedRef.current[i] = j + 1;
           }
@@ -308,14 +320,14 @@ function TourPlayer({
           push({
             kind: "walking",
             text: next
-              ? t("tour.arrivedNext", { name: s.name, next: next.name, min: next.legMin })
-              : t("tour.arrived", { name: s.name }),
+              ? t("tour.arrivedNext", { name: dname(s, locale), next: dname(next, locale), min: next.legMin })
+              : t("tour.arrived", { name: dname(s, locale) }),
           });
         }
       });
       maybeOutro();
     },
-    [tour.stops, push, maybeOutro, t]
+    [tour.stops, push, maybeOutro, t, locale]
   );
   // RAF/watch 콜백에서 항상 최신 revealAt을 쓰도록 ref 경유
   const revealRef = useRef(revealAt);
@@ -437,7 +449,7 @@ function TourPlayer({
           setToolLabel(t(toolLabelKey(ev.name)));
         } else if (ev.t === "action" && ev.action === "addToCourse") {
           draftAdd(ev.poi);
-          push({ kind: "system", text: t("agent.added", { name: ev.poi.name }) });
+          push({ kind: "system", text: t("agent.added", { name: dname(ev.poi, locale) }) });
         } else if (ev.t === "delta") {
           setToolLabel(null);
           answer += ev.text;
@@ -481,47 +493,7 @@ function TourPlayer({
 
   return (
     <div className="flex h-full flex-col">
-      {/* 헤더: 모드 토글 + 저장 */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex gap-1 rounded-chip bg-black/5 p-0.5 text-xs font-semibold">
-          {(["live", "preview"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`pressable rounded-chip px-2.5 py-1 ${
-                mode === m ? "bg-white text-navy shadow-card" : "text-neutral-500"
-              }`}
-            >
-              {m === "live" ? t("tour.live") : t("tour.preview")}
-            </button>
-          ))}
-        </div>
-        {canSave && userId && (
-          <button
-            onClick={onSave}
-            disabled={saving || saved}
-            className="pressable inline-flex items-center gap-1 rounded-chip bg-black/5 px-2.5 py-1 text-xs font-semibold text-neutral-600 disabled:opacity-60"
-          >
-            {saved ? (
-              <>
-                <Check className="h-3.5 w-3.5" aria-hidden />
-                {t("tour.saved")}
-              </>
-            ) : saving ? (
-              t("tour.saving")
-            ) : (
-              <>
-                <Save className="h-3.5 w-3.5" aria-hidden />
-                {t("tour.save")}
-              </>
-            )}
-          </button>
-        )}
-      </div>
-
-      <TourMap path={tour.path} stops={tour.stops} pos={pos} />
-
-      {/* 현재→다음 거점 상태바 (위치 기반) */}
+      {/* 지도 히어로 — 풀블리드 지도 + 상단 오버레이(모드/저장) + 하단 스크림(상태/진행) */}
       {(() => {
         const nextStop = tour.stops.find((_, i) => !arrivedRef.current[i]);
         const dist = nextStop
@@ -529,43 +501,87 @@ function TourPlayer({
           : 0;
         const distLabel = dist >= 1000 ? `${(dist / 1000).toFixed(1)}km` : `${Math.round(dist)}m`;
         return (
-          <div className="mt-2 rounded-card bg-white p-3 shadow-card">
-            <div className="flex items-center justify-between gap-3">
-              {nextStop ? (
-                <div className="min-w-0">
-                  <p className="text-[11px] text-neutral-400">{t("tour.next")}</p>
-                  <p className="truncate text-sm font-semibold text-neutral-800">
-                    {nextStop.order}. {nextStop.name}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm font-semibold text-ai">{t("tour.done")}</p>
-              )}
-              <div className="shrink-0 text-right">
-                {nextStop && (
-                  <p className="text-sm font-bold text-navy">{t("tour.away", { d: distLabel })}</p>
-                )}
-                <p className="text-[11px] text-ai">{pct}%</p>
+          <section className="rise relative -mx-4 h-[40svh] min-h-[300px] overflow-hidden rounded-b-[24px] shadow-card">
+            <TourMap fill path={tour.path} stops={tour.stops.map((s) => ({ ...s, name: dname(s, locale) }))} pos={pos} />
+
+            {/* 상단: 모드 토글 + 저장 */}
+            <div className="absolute inset-x-3 top-3 z-10 flex items-center justify-between">
+              <div className="flex gap-1 rounded-chip bg-white/90 p-0.5 text-xs font-semibold shadow-card backdrop-blur">
+                {(["live", "preview"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    className={`pressable rounded-chip px-2.5 py-1 ${
+                      mode === m ? "bg-navy text-white" : "text-neutral-500"
+                    }`}
+                  >
+                    {m === "live" ? t("tour.live") : t("tour.preview")}
+                  </button>
+                ))}
               </div>
+              {canSave && userId && (
+                <button
+                  onClick={onSave}
+                  disabled={saving || saved}
+                  className="pressable inline-flex items-center gap-1 rounded-chip bg-white/90 px-2.5 py-1 text-xs font-semibold text-neutral-700 shadow-card backdrop-blur disabled:opacity-60"
+                >
+                  {saved ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                      {t("tour.saved")}
+                    </>
+                  ) : saving ? (
+                    t("tour.saving")
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" aria-hidden />
+                      {t("tour.save")}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/5">
-              <div className="h-full rounded-full bg-ai transition-all" style={{ width: `${pct}%` }} />
+
+            {/* 하단 스크림: 다음 거점 + 거리 + 진행률 + 메타 */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-navy via-navy/55 to-transparent px-4 pb-4 pt-16 text-white">
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  {nextStop ? (
+                    <>
+                      <p className="text-[11px] text-white/70">{t("tour.next")}</p>
+                      <p className="truncate text-base font-bold">
+                        {nextStop.order}. {dname(nextStop, locale)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-base font-bold">{t("tour.done")}</p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  {nextStop && (
+                    <p className="text-sm font-bold">{t("tour.away", { d: distLabel })}</p>
+                  )}
+                  <p className="text-[11px] text-white/80">{pct}%</p>
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/25">
+                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="mt-1.5 text-[11px] text-white/70">
+                {t("tour.meta", {
+                  km: (total / 1000).toFixed(1),
+                  min: tour.totalMinutes,
+                  n: tour.stops.length,
+                })}
+              </p>
             </div>
-          </div>
+          </section>
         );
       })()}
 
-      <p className="mt-1.5 text-center text-[11px] text-neutral-400">
-        {t("tour.meta", {
-          km: (total / 1000).toFixed(1),
-          min: tour.totalMinutes,
-          n: tour.stops.length,
-        })}
-      </p>
-
       {/* 미리보기 컨트롤: 재생 + 배속 슬라이더 + 진행 스크럽 + 정류지 점프 */}
       {mode === "preview" && (
-        <div className="mt-2 space-y-2">
+        <div className="card mt-3 space-y-2 p-3">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -610,7 +626,7 @@ function TourPlayer({
                 onClick={() => seekTo(s.cumDist)}
                 className="pressable whitespace-nowrap rounded-chip bg-black/5 px-2.5 py-1 text-xs text-neutral-600"
               >
-                {s.order}. {s.name}
+                {s.order}. {dname(s, locale)}
               </button>
             ))}
           </div>
@@ -624,7 +640,7 @@ function TourPlayer({
       )}
 
       {/* 챗 로그 */}
-      <div ref={scrollRef} className="mt-2 flex-1 space-y-3 overflow-y-auto border-t border-neutral-100 py-3">
+      <div ref={scrollRef} className="no-scrollbar mt-3 flex-1 space-y-3 overflow-y-auto py-1">
         {log.map((c, i) => (
           <Bubble key={i} c={c} streaming={asking && i === log.length - 1 && c.kind === "docent"} />
         ))}
@@ -664,21 +680,21 @@ function TourPlayer({
 function Bubble({ c, streaming }: { c: Chat; streaming: boolean }) {
   if (c.kind === "user")
     return (
-      <div className="flex justify-end">
+      <div className="msg-in flex justify-end">
         <div className="max-w-[85%] rounded-card bg-navy px-3 py-2 text-sm text-white">{c.text}</div>
       </div>
     );
   if (c.kind === "walking")
     return (
-      <div className="flex items-center gap-1.5 px-1 text-xs text-neutral-400">
+      <div className="msg-in flex items-center gap-1.5 px-1 text-xs text-neutral-400">
         <span className="text-ai">🚶</span>
         <span>{c.text}</span>
       </div>
     );
   if (c.kind === "system")
-    return <div className="rounded-chip bg-ai/10 py-2 text-center text-xs text-ai">{c.text}</div>;
+    return <div className="msg-in rounded-chip bg-ai/10 py-2 text-center text-xs text-ai">{c.text}</div>;
   return (
-    <div className="flex justify-start">
+    <div className="msg-in flex justify-start">
       <div className="max-w-[88%]">
         {c.title && <div className="mb-1 px-1 text-[11px] font-semibold text-ai">🚩 {c.title}</div>}
         <div className="rounded-card bg-black/5 px-3 py-2 text-sm leading-relaxed text-neutral-800">
